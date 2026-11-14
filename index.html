@@ -1,0 +1,2828 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karaj Gold Heist — O(N²) Subrectangle Sum [k, 2k] Visualizer</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+          colors: {
+            obsidian: '#0b0f19',
+            vault: '#111827',
+            vaultLight: '#172033',
+            vaultBorder: '#1f2937',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style data-keep-style>
+    /* Custom Scrollbars & Telemetry Patterns */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #0b0f19;
+      color: #f3f4f6;
+      font-family: 'Inter', system-ui, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Subtle cartographic coordinate grid texture */
+    .cartographic-bg {
+      background-image:
+        radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.05) 0%, transparent 45%),
+        radial-gradient(circle at 85% 20%, rgba(56, 189, 248, 0.05) 0%, transparent 45%),
+        linear-gradient(to right, rgba(31, 41, 55, 0.35) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(31, 41, 55, 0.35) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+    }
+
+    /* Custom slim scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4b5563;
+    }
+
+    /* Peeled row diagonal crimson stripe pattern */
+    .peeled-hatch {
+      background-image: repeating-linear-gradient(
+        -45deg,
+        rgba(244, 63, 94, 0.22),
+        rgba(244, 63, 94, 0.22) 6px,
+        rgba(15, 23, 42, 0.55) 6px,
+        rgba(15, 23, 42, 0.55) 12px
+      );
+    }
+
+    /* Winning gold glow animation */
+    @keyframes vaultPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.85), 0 0 22px rgba(245, 158, 11, 0.35);
+      }
+      50% {
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.95), 0 0 30px rgba(16, 185, 129, 0.45);
+      }
+    }
+    .winner-cell {
+      animation: vaultPulse 2.2s infinite ease-in-out;
+    }
+
+    /* Range input styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #1f2937;
+      height: 6px;
+      border-radius: 9999px;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #f59e0b;
+      cursor: pointer;
+      border: 2px solid #0b0f19;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #f59e0b;
+      cursor: pointer;
+      border: 2px solid #0b0f19;
+    }
+
+    /* Remove number input spinners for clean cell editing */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    /* Hide scrollbar on horizontal mobile pill strips while preserving touch swipe */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="cartographic-bg min-h-screen flex flex-col selection:bg-amber-500/30 selection:text-amber-200">
+
+  <!-- Toast Notification Banner -->
+  <div id="toastBanner" class="fixed bottom-5 right-5 z-50 pointer-events-none opacity-0 translate-y-3 transition-all duration-300">
+    <div class="bg-gray-900/95 border border-amber-500/40 text-amber-200 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-medium backdrop-blur-md">
+      <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+      <span id="toastText">Exported clean standalone HTML</span>
+    </div>
+  </div>
+
+  <!-- Quera Stdin Import / Copy Modal -->
+  <div id="stdinModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#111827] border border-[#1f2937] rounded-2xl max-w-lg w-full p-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-[#1f2937]">
+        <div>
+          <h3 class="text-sm font-bold text-white">Import / Copy Quera Test Case (<span class="font-mono text-amber-400">stdin</span>)</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Format: <span class="font-mono text-gray-300">N k</span> on line 1, followed by <span class="font-mono text-gray-300">N</span> rows of <span class="font-mono text-gray-300">N</span> non-negative integers (<span class="font-mono text-gray-300">1 ≤ N ≤ 6</span>).</p>
+        </div>
+        <button id="closeStdinModalBtn" type="button" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition cursor-pointer" title="Close (Esc)">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <textarea id="stdinTextarea" rows="8" spellcheck="false"
+        class="w-full rounded-xl bg-[#0b0f19] border border-[#1f2937] focus:border-amber-400/70 focus:outline-none p-3 font-mono text-xs text-gray-100 leading-relaxed"
+        placeholder="3 10&#10;1 2 3&#10;4 5 6&#10;7 8 9"></textarea>
+
+      <div id="stdinErrorMsg" class="hidden mt-2 text-xs font-mono text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-1.5"></div>
+
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <button id="copyStdinBtn" type="button" class="px-3 py-2 rounded-xl bg-[#0b0f19] hover:bg-gray-800 border border-[#1f2937] text-cyan-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <span>Copy Current Stdin</span>
+        </button>
+
+        <div class="flex items-center gap-2">
+          <button id="cancelStdinBtn" type="button" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium transition cursor-pointer">
+            Cancel
+          </button>
+          <button id="applyStdinBtn" type="button" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-950 text-xs font-bold transition cursor-pointer shadow-md shadow-amber-500/20">
+            Load Into Visualizer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. TOP HEADER BAR -->
+  <header class="sm:sticky sm:top-0 z-30 bg-[#0b0f19]/90 backdrop-blur-md border-b border-[#1f2937] px-4 sm:px-6 py-2.5 sm:py-3">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-amber-500/20 via-amber-500/10 to-cyan-500/20 border border-amber-500/40 flex items-center justify-center shadow-inner shrink-0">
+          <!-- Vault / Grid Icon -->
+          <svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-[15px] leading-snug sm:text-lg font-bold tracking-tight text-white">
+              Karaj Gold Heist — <span class="text-amber-400 font-mono">O(N²)</span> Subrectangle Sum <span class="text-emerald-400 font-mono">[k, 2k]</span>
+            </h1>
+          </div>
+          <p class="text-xs text-gray-400 hidden sm:block">
+            Deterministic 4-Stage Reduction: 2D Prefix Sums · 1×1 Scan · 1×W Sliding Window · Monotonic Stack Histogram &amp; Row Peeling
+          </p>
+        </div>
+      </div>
+
+      <!-- Complexity Badge & Export Button -->
+      <div class="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2">
+        <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#111827] border border-[#1f2937] text-xs font-mono">
+          <span class="text-emerald-400 font-semibold">O(N²) Time · O(N²) Space</span>
+          <span class="text-gray-600">vs</span>
+          <span class="text-rose-400/90 line-through">O(N⁴) Brute Force</span>
+          <span id="opsComparisonBadge" class="ml-1 px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 text-[11px]"></span>
+        </div>
+
+        <button id="soundToggleBtn" type="button" title="Toggle synthesized sound effects"
+                class="shrink-0 px-3 py-2 rounded-xl bg-[#111827] hover:bg-gray-800 border border-[#1f2937] text-gray-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer">
+          <svg id="iconSoundOn" class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          </svg>
+          <svg id="iconSoundOff" class="w-4 h-4 text-gray-500 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+          </svg>
+          <span id="soundToggleLabel" class="hidden sm:inline">SFX On</span>
+        </button>
+
+        <button id="exportHtmlBtn" type="button" title="Exports a clean, self-contained HTML snapshot with your current grid, k, and step preserved"
+                class="flex-1 sm:flex-initial justify-center px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-[0.99] text-amber-300 border border-amber-500/40 text-xs font-semibold flex items-center gap-2 transition cursor-pointer shadow-sm">
+          <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span class="truncate">Export Self-Contained .html</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. SCENARIO & GRID CONFIGURATION BAR -->
+  <section class="bg-[#111827]/80 border-b border-[#1f2937] px-4 sm:px-6 py-2.5 sm:py-3">
+    <div class="max-w-[1600px] mx-auto flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 sm:gap-3">
+      <!-- Preset Buttons (Single-row horizontal swipe on mobile, wrapped on desktop) -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar sm:flex-wrap -mx-4 px-4 sm:mx-0 sm:px-0">
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mr-1 shrink-0">Presets:</span>
+        <button data-preset="0" class="preset-btn shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer">
+          Sample 1 (N=3, k=10)
+        </button>
+        <button data-preset="1" class="preset-btn shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer">
+          Sample 2 (N=4, k=5)
+        </button>
+        <button data-preset="2" class="preset-btn shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer">
+          Stage 3 Showcase (N=4, k=10)
+        </button>
+        <button data-preset="3" class="preset-btn shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer">
+          Sample 3: NIST (N=2, k=5)
+        </button>
+        <button data-preset="4" class="preset-btn shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer">
+          5×5 Obstacle Maze (N=5, k=12)
+        </button>
+      </div>
+
+      <!-- Interactive N, k, Randomize & Stdin Controls (Symmetrical 2x2 grid on mobile) -->
+      <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+        <label class="flex items-center justify-between sm:justify-start gap-1.5 bg-[#0b0f19] border border-[#1f2937] rounded-xl px-2.5 py-1.5 text-xs">
+          <span class="text-gray-400 font-mono shrink-0">N =</span>
+          <select id="gridSizeSelect" class="bg-transparent text-white font-mono font-semibold focus:outline-none cursor-pointer flex-1 sm:flex-initial text-right sm:text-left">
+            <option value="1" class="bg-gray-900">1 (1×1)</option>
+            <option value="2" class="bg-gray-900">2 (2×2)</option>
+            <option value="3" class="bg-gray-900">3 (3×3)</option>
+            <option value="4" class="bg-gray-900">4 (4×4)</option>
+            <option value="5" class="bg-gray-900">5 (5×5)</option>
+            <option value="6" class="bg-gray-900">6 (6×6)</option>
+          </select>
+        </label>
+
+        <label class="flex items-center gap-1.5 bg-[#0b0f19] border border-[#1f2937] rounded-xl px-2.5 py-1.5 text-xs min-w-0">
+          <span class="text-amber-400 font-mono font-semibold shrink-0">k =</span>
+          <input id="targetKInput" type="number" min="1" max="1000000000" value="10"
+                 class="w-12 sm:w-20 min-w-0 flex-1 sm:flex-initial bg-transparent text-white font-mono font-semibold focus:outline-none focus:text-amber-300" />
+          <span id="doubleKBadge" class="text-[11px] font-mono text-gray-400 border-l border-gray-800 pl-2 shrink-0 whitespace-nowrap">2k = 20</span>
+        </label>
+
+        <button id="randomizeBtn" type="button" class="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span>Randomize</span>
+        </button>
+
+        <button id="openStdinModalBtn" type="button" class="px-3 py-1.5 rounded-xl bg-[#0b0f19] hover:bg-gray-800 text-gray-200 border border-[#1f2937] hover:border-amber-500/40 text-xs font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap transition cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span>Import / Copy Stdin</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. PLAYBACK TRANSPORT & STAGE SCRUBBER BAR -->
+  <section class="bg-[#0e1422] border-b border-[#1f2937] px-4 sm:px-6 py-2.5">
+    <div class="max-w-[1600px] mx-auto flex flex-col gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+        <!-- Transport Controls (4 equal columns on mobile) -->
+        <div class="w-full sm:w-auto grid grid-cols-4 sm:flex sm:flex-wrap items-center gap-1.5">
+          <button id="btnReset" type="button" title="Reset to Step 0" class="px-2.5 py-1.5 rounded-xl bg-[#111827] hover:bg-gray-800 border border-[#1f2937] text-gray-300 text-xs font-medium flex items-center justify-center gap-1 transition cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+            <span>Reset</span>
+          </button>
+
+          <button id="btnPrev" type="button" title="Step Back (Left Arrow)" class="px-3 py-1.5 rounded-xl bg-[#111827] hover:bg-gray-800 border border-[#1f2937] text-gray-200 text-xs font-medium flex items-center justify-center gap-1 transition cursor-pointer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Back</span>
+          </button>
+
+          <button id="btnPlayPause" type="button" title="Play / Pause (Space)" class="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer">
+            <svg id="iconPlay" class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            <svg id="iconPause" class="w-3.5 h-3.5 hidden shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+            </svg>
+            <span id="playPauseLabel">Play</span>
+          </button>
+
+          <button id="btnNext" type="button" title="Step Forward (Right Arrow)" class="px-3 py-1.5 rounded-xl bg-[#111827] hover:bg-gray-800 border border-[#1f2937] text-gray-200 text-xs font-medium flex items-center justify-center gap-1 transition cursor-pointer">
+            <span>Step</span>
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Stage Quick-Jump Pills (Aligned 2x2 grid on mobile) -->
+        <div class="w-full sm:w-auto grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1.5">
+          <span class="text-[11px] text-gray-500 font-medium mr-0.5 hidden sm:inline">Stage:</span>
+          <button data-jump-stage="0" class="stage-jump-btn px-2.5 py-1.5 sm:py-1 rounded-lg text-[11px] font-mono font-semibold border transition cursor-pointer text-center">
+            Stage 0 · Prefix
+          </button>
+          <button data-jump-stage="1" class="stage-jump-btn px-2.5 py-1.5 sm:py-1 rounded-lg text-[11px] font-mono font-semibold border transition cursor-pointer text-center">
+            Stage 1 · 1×1
+          </button>
+          <button data-jump-stage="2" class="stage-jump-btn px-2.5 py-1.5 sm:py-1 rounded-lg text-[11px] font-mono font-semibold border transition cursor-pointer text-center">
+            Stage 2 · Window
+          </button>
+          <button data-jump-stage="3" class="stage-jump-btn px-2.5 py-1.5 sm:py-1 rounded-lg text-[11px] font-mono font-semibold border transition cursor-pointer text-center">
+            Stage 3 · Histogram
+          </button>
+        </div>
+
+        <!-- Speed Slider & Step Counter (Full-width flex on mobile) -->
+        <div class="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2">
+          <div class="flex-1 sm:flex-initial flex items-center gap-2 bg-[#111827] border border-[#1f2937] rounded-xl px-3 py-1.5 sm:py-1 min-w-0">
+            <span class="text-[11px] text-gray-400 shrink-0">Speed</span>
+            <input id="speedSlider" type="range" min="0" max="4" step="1" value="2" class="flex-1 sm:w-20 min-w-0" />
+            <span id="speedLabel" class="text-[11px] font-mono font-semibold text-amber-400 w-8 text-right shrink-0">1.0x</span>
+          </div>
+
+          <div class="shrink-0 px-3 py-1.5 sm:py-1 rounded-xl bg-[#111827] border border-[#1f2937] font-mono text-xs text-gray-300">
+            Step <span id="stepCurrent" class="text-white font-bold">1</span> / <span id="stepTotal" class="text-gray-400">1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Segmented Progress Scrubber Bar with Hover Tooltip -->
+      <div class="relative w-full">
+        <div id="scrubberTooltip" class="hidden absolute bottom-5 -translate-x-1/2 z-20 pointer-events-none px-2.5 py-1 rounded-lg bg-gray-950/95 border border-amber-500/40 text-[11px] font-mono text-gray-100 whitespace-nowrap shadow-xl">
+        </div>
+        <div id="scrubberTrack" class="w-full h-2.5 bg-[#111827] rounded-full overflow-hidden border border-[#1f2937] flex cursor-pointer relative">
+          <!-- Stage segments populated dynamically -->
+        </div>
+        <div id="scrubberThumb" class="w-3.5 h-3.5 rounded-full bg-amber-400 border-2 border-[#0b0f19] shadow-md absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none transition-all duration-75" style="left: 0%;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. MAIN WORKSPACE (RESPONSIVE 2-COLUMN SPLIT) -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start lg:items-stretch">
+
+    <!-- LEFT COLUMN: VISUAL STAGE (7 Cols on Desktop) -->
+    <div class="lg:col-span-7 flex flex-col gap-4 min-w-0">
+
+      <!-- Card 1: Interactive N x N Grid Canvas -->
+      <div class="bg-[#111827] border border-[#1f2937] rounded-2xl p-4 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-[#1f2937]">
+          <div class="flex items-center gap-2 min-w-0">
+            <span id="gridStageBadge" class="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-mono font-bold whitespace-nowrap shrink-0 bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+              STAGE 0
+            </span>
+            <h2 class="text-sm font-bold text-white truncate">Subterranean Grid <span class="text-gray-400 font-mono font-normal hidden min-[400px]:inline">(N×N)</span></h2>
+          </div>
+
+          <div class="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2">
+            <!-- Color Legend -->
+            <div class="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+              <span class="flex items-center gap-1 text-cyan-300">
+                <span class="w-2.5 h-2.5 rounded-sm bg-cyan-500/25 border border-cyan-400/60"></span> &lt; k
+              </span>
+              <span class="flex items-center gap-1 text-emerald-300">
+                <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/25 border border-emerald-400/70"></span> [k, 2k]
+              </span>
+              <span class="flex items-center gap-1 text-rose-300">
+                <span class="w-2.5 h-2.5 rounded-sm bg-rose-500/25 border border-rose-400/70"></span> &gt; 2k
+              </span>
+              <span class="flex items-center gap-1 text-amber-300">
+                <span class="w-2.5 h-2.5 rounded-sm bg-amber-500/25 border border-amber-400"></span> Active
+              </span>
+            </div>
+
+            <!-- Brute-Force Verification Toggle -->
+            <button id="toggleBruteForceBtn" type="button" title="Compare against O(N⁴) exhaustive search"
+                    class="shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold border border-[#1f2937] bg-[#0b0f19] text-gray-300 hover:border-indigo-400/60 hover:text-indigo-200 transition cursor-pointer">
+              O(N⁴) Verify
+            </button>
+          </div>
+        </div>
+
+        <!-- O(N⁴) Brute-Force Cross-Check Drawer -->
+        <div id="bruteForcePanel" class="hidden mb-3 rounded-xl px-3.5 py-2.5 bg-indigo-950/30 border border-indigo-500/35">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+            <div id="bfSummaryText" class="text-xs font-mono text-indigo-200 font-semibold"></div>
+            <button id="clearBfPreviewBtn" type="button" class="hidden text-[11px] font-mono text-gray-400 hover:text-white underline cursor-pointer">
+              Clear preview
+            </button>
+          </div>
+          <div id="bfValidChipsList" class="flex flex-wrap items-center gap-1.5">
+            <!-- Valid subrectangle chips rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Final Output Verdict Banner (Shown when algorithm terminates) -->
+        <div id="finalOutputBanner" class="hidden mb-3 rounded-xl px-4 py-2.5 border flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <span id="finalOutputIcon" class="text-base"></span>
+            <div>
+              <div id="finalOutputTitle" class="font-mono text-sm font-bold"></div>
+              <div id="finalOutputSubtitle" class="text-xs opacity-90"></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span id="finalOutputVerifiedTag" class="px-2 py-1 rounded-lg font-mono text-[11px] font-semibold bg-indigo-500/20 text-indigo-200 border border-indigo-400/40">
+              ✓ O(N⁴) Verified
+            </span>
+            <span id="finalOutputTag" class="px-2.5 py-1 rounded-lg font-mono text-xs font-bold"></span>
+          </div>
+        </div>
+
+        <!-- Responsive Grid Container -->
+        <div class="flex flex-col items-center justify-center py-1">
+          <div id="mainGridContainer" class="w-full max-w-[540px] grid gap-2 sm:gap-2.5 mx-auto">
+            <!-- Grid cells injected dynamically -->
+          </div>
+          <p class="text-[11px] text-gray-500 mt-2.5 text-center">
+            Tip: Click any cell to edit inline (<span class="font-mono text-gray-400">Tab</span> / <span class="font-mono text-gray-400">Shift+Tab</span> moves between cells). Coordinates are 1-indexed <span class="font-mono text-gray-400">(row, col)</span>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Card 2: Live Sum Target Gauge [0, k, 2k] -->
+      <div class="bg-[#111827] border border-[#1f2937] rounded-2xl p-4 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-bold text-white">Live Heist Sum Target Gauge</h3>
+            <span class="text-xs font-mono text-gray-400">[0, k, 2k]</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400 font-mono">Current S =</span>
+            <span id="gaugeSumValue" class="px-2.5 py-0.5 rounded-lg font-mono text-sm font-bold bg-gray-800 text-gray-200 border border-gray-700">
+              —
+            </span>
+            <span id="gaugeStatusPill" class="px-2 py-0.5 rounded-lg text-[11px] font-mono font-semibold bg-gray-800 text-gray-400">
+              IDLE
+            </span>
+          </div>
+        </div>
+
+        <!-- Visual 3-Zone Range Gauge -->
+        <div class="relative pt-6 pb-2">
+          <!-- Floating Marker Needle -->
+          <div id="gaugeMarker" class="absolute top-0 transition-all duration-200 -translate-x-1/2 flex flex-col items-center pointer-events-none" style="left: 0%; opacity: 0.35;">
+            <span id="gaugeMarkerLabel" class="px-1.5 py-0.5 rounded bg-amber-400 text-gray-950 font-mono text-[10px] font-extrabold shadow">
+              S=0
+            </span>
+            <div class="w-0.5 h-3 bg-amber-400"></div>
+          </div>
+
+          <!-- Track -->
+          <div class="w-full h-4 rounded-xl overflow-hidden flex border border-[#1f2937] bg-[#0b0f19]">
+            <!-- Zone 1: [0, k) -->
+            <div class="w-1/3 h-full bg-cyan-500/20 border-r-2 border-amber-400/80 flex items-center justify-center">
+              <span class="text-[10px] font-mono font-semibold text-cyan-300/90 truncate px-1">Too Small (&lt; k)</span>
+            </div>
+            <!-- Zone 2: [k, 2k] -->
+            <div class="w-1/3 h-full bg-emerald-500/25 border-r-2 border-rose-500/80 flex items-center justify-center">
+              <span class="text-[10px] font-mono font-bold text-emerald-300 truncate px-1">VALID HEIST [k, 2k]</span>
+            </div>
+            <!-- Zone 3: (2k, ∞) -->
+            <div class="w-1/3 h-full bg-rose-500/20 flex items-center justify-center">
+              <span class="text-[10px] font-mono font-semibold text-rose-300/90 truncate px-1">Alarm (&gt; 2k)</span>
+            </div>
+          </div>
+
+          <!-- Threshold Axis Labels -->
+          <div class="flex justify-between text-[11px] font-mono text-gray-400 mt-1.5 px-0.5">
+            <span>0</span>
+            <span id="gaugeKLabel" class="text-amber-400 font-semibold">k = 10</span>
+            <span id="gauge2KLabel" class="text-rose-400 font-semibold">2k = 20</span>
+            <span>3k+</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Stage 3 Histogram & Monotonic Stack Panel -->
+      <div class="bg-[#111827] border border-[#1f2937] rounded-2xl p-4 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-[#1f2937]">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-bold text-white">Stage 3: 2D Histogram &amp; Monotonic Stack</h3>
+            <span id="histRowBadge" class="px-2 py-0.5 rounded-md text-[11px] font-mono bg-gray-800 text-gray-400 border border-gray-700">
+              Row x = —
+            </span>
+          </div>
+          <span class="text-[11px] font-mono text-cyan-400">height[y] = consecutive &lt; k cells</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+          <!-- Histogram Bars + Explicit Bound Arrays Table (7 Cols) -->
+          <div class="md:col-span-7 bg-[#0b0f19] border border-[#1f2937] rounded-xl p-3 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-[11px] font-mono text-gray-400 mb-2">
+              <span>Column Heights <span class="text-cyan-400">height[1..N]</span></span>
+              <span id="histSpanInfo" class="text-amber-300">Span: —</span>
+            </div>
+
+            <!-- Bar Chart Container -->
+            <div id="histogramBarsContainer" class="h-32 flex items-end justify-around gap-2 pt-4 pb-1 px-2 border-b border-gray-800">
+              <!-- Bars rendered dynamically -->
+            </div>
+
+            <!-- Bound Span Indicator Strip -->
+            <div id="histogramBoundsStrip" class="mt-2 pt-0.5 flex items-center justify-around gap-2 px-2 text-[11px] font-mono">
+              <!-- Column indices & leftBound/rightBound indicators -->
+            </div>
+
+            <!-- Explicit height[], leftBound[], rightBound[] Telemetry Strip -->
+            <div id="histogramArraysTable" class="mt-2.5 pt-2 border-t border-gray-800/90 text-[10.5px] font-mono">
+              <!-- 3-row aligned array readout rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Monotonic Stack Slot Visualizer (5 Cols) -->
+          <div class="md:col-span-5 bg-[#0b0f19] border border-[#1f2937] rounded-xl p-3 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-[11px] font-mono mb-2">
+              <span class="text-gray-400">Monotonic Stack</span>
+              <span id="stackModeBadge" class="px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 text-[10px]">
+                IDLE
+              </span>
+            </div>
+
+            <div id="monotonicStackContainer" class="flex-1 min-h-[116px] flex flex-col-reverse justify-start gap-1.5 p-2 rounded-lg bg-[#111827]/70 border border-dashed border-gray-800">
+              <!-- Stack elements rendered bottom-up -->
+            </div>
+
+            <div class="mt-2 flex items-center justify-between text-[11px] font-mono text-gray-400">
+              <span id="stackTopLabel">top = -1</span>
+              <span id="stackRuleLabel" class="text-gray-500">Strictly increasing h</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: TELEMETRY, PREFIX SUM & SYNCHRONIZED CODE (5 Cols on Desktop) -->
+    <div class="lg:col-span-5 lg:relative min-w-0">
+      <div class="flex flex-col gap-4 lg:absolute lg:inset-0">
+
+        <!-- Card 4: Step Narration & Mathematical Invariant Box -->
+        <div class="bg-[#111827] border border-[#1f2937] rounded-2xl p-4 shadow-xl shrink-0">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <span id="narrationStagePill" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            Stage 0 · Prefix Sum
+          </span>
+          <span id="narrationStepId" class="text-[11px] font-mono text-gray-500">#1</span>
+        </div>
+
+        <h3 id="narrationTitle" class="text-sm sm:text-base font-bold text-white mb-1.5">
+          Initializing 2D Prefix Sum Array
+        </h3>
+        <p id="narrationDesc" class="text-xs sm:text-sm text-gray-300 leading-relaxed mb-3">
+          Precomputing horizontal and vertical cumulative sums so any subrectangle sum can be queried in O(1) time.
+        </p>
+
+        <!-- Live Telemetry Variable Watch Chips -->
+        <div id="variableWatchGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-1.5 mb-3">
+          <!-- Variable chips injected dynamically -->
+        </div>
+
+        <!-- Mathematical Invariant Callout -->
+        <div class="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3">
+          <div class="flex items-center gap-1.5 text-[11px] font-mono font-bold text-amber-400 uppercase tracking-wider mb-1">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <span>Key Algorithmic Invariant</span>
+          </div>
+          <p id="invariantText" class="text-xs text-amber-100/90 leading-relaxed">
+            Inclusion-exclusion over preCachedGridSum computes any rectangle sum in O(1).
+          </p>
+        </div>
+      </div>
+
+        <!-- Card 5: 2D Prefix Sum (preCachedGridSum) & O(1) Inclusion-Exclusion Inspector -->
+        <div class="bg-[#111827] border border-[#1f2937] rounded-2xl p-4 shadow-xl shrink-0">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-[#1f2937]">
+          <div>
+            <h3 class="text-sm font-bold text-white font-mono">preCachedGridSum[i][j]</h3>
+            <p class="text-[11px] text-gray-400">2D Prefix Sum &amp; Inclusion-Exclusion Corners</p>
+          </div>
+          <div class="flex items-center gap-1.5 text-[10px] font-mono">
+            <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">+total</span>
+            <span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">-top/-left</span>
+            <span class="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">+topLeft</span>
+          </div>
+        </div>
+
+        <!-- Prefix Matrix -->
+        <div id="prefixMatrixContainer" class="grid gap-1.5 max-w-[400px] mx-auto mb-3">
+          <!-- Matrix cells injected dynamically -->
+        </div>
+
+        <!-- Inclusion-Exclusion Live Equation Bar -->
+        <div id="inclusionExclusionBox" class="rounded-xl bg-[#0b0f19] border border-[#1f2937] px-3 py-2 font-mono text-xs text-gray-300 overflow-x-auto whitespace-nowrap">
+          <span class="text-gray-500">gridSum(x1,y1,x2,y2):</span> Waiting for Stage 3 region query...
+        </div>
+      </div>
+
+        <!-- Card 6: Synchronized Main.java Code Viewer -->
+        <div class="bg-[#111827] border border-[#1f2937] rounded-2xl overflow-hidden shadow-xl flex flex-col flex-1 min-h-0">
+          <div class="px-4 py-2.5 bg-[#0e1422] border-b border-[#1f2937] flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+              <span class="ml-1.5 text-xs font-mono font-semibold text-gray-200">Main.java — HistogramConverter()</span>
+            </div>
+            <span id="activeCodeLineBadge" class="text-[11px] font-mono text-amber-400">Line 2</span>
+          </div>
+
+          <div id="codeViewerContainer" class="flex-1 min-h-0 max-h-[340px] lg:max-h-none overflow-y-auto overflow-x-auto font-mono text-[11.5px] leading-relaxed py-2 bg-[#0b0f19]">
+            <!-- Code lines rendered dynamically -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Initial State Injection Target (Populated on Standalone Export) -->
+  <script id="initialStateScript">window.__INITIAL_STATE__ = null;</script>
+
+  <script>
+    // =========================================================================
+    // 1. PRESETS & STATE CONFIGURATION (Matches Main.java & Karaj Problem 100%)
+    // =========================================================================
+    const PRESETS = [
+      {
+        name: "Sample 1 (N=3, k=10)",
+        N: 3,
+        k: 10,
+        grid: [
+          [1, 2, 3],
+          [4, 5, 6],
+          [7, 8, 9]
+        ]
+      },
+      {
+        name: "Sample 2 (N=4, k=5)",
+        N: 4,
+        k: 5,
+        grid: [
+          [0, 1, 0, 2],
+          [3, 0, 1, 0],
+          [0, 2, 0, 4],
+          [1, 0, 3, 0]
+        ]
+      },
+      {
+        name: "Stage 3 Showcase (N=4, k=10)",
+        N: 4,
+        k: 10,
+        grid: [
+          [3, 3, 2, 25],
+          [3, 3, 2, 1],
+          [3, 3, 2, 1],
+          [3, 3, 2, 1]
+        ]
+      },
+      {
+        name: "Sample 3: NIST (N=2, k=5)",
+        N: 2,
+        k: 5,
+        grid: [
+          [11, 12],
+          [13, 20]
+        ]
+      },
+      {
+        name: "5×5 Obstacle Maze (N=5, k=12)",
+        N: 5,
+        k: 12,
+        grid: [
+          [4, 5, 28, 3, 4],
+          [3, 4, 2, 5, 29],
+          [2, 3, 4, 3, 2],
+          [30, 4, 3, 4, 3],
+          [2, 3, 2, 4, 3]
+        ]
+      }
+    ];
+
+    // Exact synchronized Java code lines matching Main.java
+    const JAVA_CODE_LINES = [
+      { num: 1,  text: "// Stage 0: 2D Prefix Sum Precomputation", type: "comment" },
+      { num: 2,  text: "preCachedGridSum = new long[N][N];" },
+      { num: 3,  text: "for (int i = 0; i < N; i++) {" },
+      { num: 4,  text: "    preCachedGridSum[i][0] = grid[i][0];" },
+      { num: 5,  text: "    for (int j = 1; j < N; j++)" },
+      { num: 6,  text: "        preCachedGridSum[i][j] = preCachedGridSum[i][j - 1] + grid[i][j];" },
+      { num: 7,  text: "}" },
+      { num: 8,  text: "for (int j = 0; j < N; j++) {" },
+      { num: 9,  text: "    for (int i = 1; i < N; i++)" },
+      { num: 10, text: "        preCachedGridSum[i][j] = preCachedGridSum[i - 1][j] + preCachedGridSum[i][j];" },
+      { num: 11, text: "}" },
+      { num: 12, text: "" },
+      { num: 13, text: "// Stage 1: Find single-cell valid answers (1x1)", type: "comment" },
+      { num: 14, text: "for (int x = 0; x < N; x++) {" },
+      { num: 15, text: "    for (int y = 0; y < N; y++) {" },
+      { num: 16, text: "        int cellValue = grid[x][y];" },
+      { num: 17, text: "        if (k <= cellValue && cellValue <= 2 * k)" },
+      { num: 18, text: "            return new Region(x, y, x, y);" },
+      { num: 19, text: "    }" },
+      { num: 20, text: "}" },
+      { num: 21, text: "" },
+      { num: 22, text: "// Stage 2: Find single-row valid subrectangles (sliding window)", type: "comment" },
+      { num: 23, text: "for (int x = 0; x < N; x++) {" },
+      { num: 24, text: "    int left = 0; long sum = 0;" },
+      { num: 25, text: "    for (int right = 0; right < N; right++) {" },
+      { num: 26, text: "        if (grid[x][right] > 2 * k) {" },
+      { num: 27, text: "            left = right + 1; sum = 0;" },
+      { num: 28, text: "        } else {" },
+      { num: 29, text: "            sum += grid[x][right];" },
+      { num: 30, text: "            while (sum > 2 * k && left <= right) {" },
+      { num: 31, text: "                sum -= grid[x][left]; left++;" },
+      { num: 32, text: "            }" },
+      { num: 33, text: "            if (k <= sum && sum <= 2 * k)" },
+      { num: 34, text: "                return new Region(x, left, x, right);" },
+      { num: 35, text: "        }" },
+      { num: 36, text: "    }" },
+      { num: 37, text: "}" },
+      { num: 38, text: "" },
+      { num: 39, text: "// Stage 3: Find maximal subrectangles using histogram conversion", type: "comment" },
+      { num: 40, text: "int[] height = new int[N], leftBound = new int[N], rightBound = new int[N];" },
+      { num: 41, text: "int[] stack = new int[N]; int top;" },
+      { num: 42, text: "for (int x = 0; x < N; x++) {" },
+      { num: 43, text: "    for (int y = 0; y < N; y++)" },
+      { num: 44, text: "        height[y] = grid[x][y] < k ? height[y] + 1 : 0;" },
+      { num: 45, text: "    // Nearest smaller bar to the left for each column", type: "comment" },
+      { num: 46, text: "    top = -1;" },
+      { num: 47, text: "    for (int y = 0; y < N; y++) {" },
+      { num: 48, text: "        while (top >= 0 && height[stack[top]] >= height[y]) top--;" },
+      { num: 49, text: "        leftBound[y] = (top == -1) ? 0 : stack[top] + 1;" },
+      { num: 50, text: "        stack[++top] = y;" },
+      { num: 51, text: "    }" },
+      { num: 52, text: "    // Nearest smaller bar to the right for each column", type: "comment" },
+      { num: 53, text: "    top = -1;" },
+      { num: 54, text: "    for (int y = N - 1; y >= 0; y--) {" },
+      { num: 55, text: "        while (top >= 0 && height[stack[top]] >= height[y]) top--;" },
+      { num: 56, text: "        rightBound[y] = (top == -1) ? N - 1 : stack[top] - 1;" },
+      { num: 57, text: "        stack[++top] = y;" },
+      { num: 58, text: "    }" },
+      { num: 59, text: "    // Evaluate each maximal rectangle & peel rows if sum > 2 * k", type: "comment" },
+      { num: 60, text: "    for (int y = 0; y < N; y++) {" },
+      { num: 61, text: "        if (height[y] == 0) continue;" },
+      { num: 62, text: "        int x1 = x - height[y] + 1, y1 = leftBound[y], x2 = x, y2 = rightBound[y];" },
+      { num: 63, text: "        long sum = gridSum(new Region(x1, y1, x2, y2));" },
+      { num: 64, text: "        if (sum >= k) {" },
+      { num: 65, text: "            while (sum > 2 * k) {" },
+      { num: 66, text: "                x2--;" },
+      { num: 67, text: "                sum = gridSum(new Region(x1, y1, x2, y2));" },
+      { num: 68, text: "            }" },
+      { num: 69, text: "            return new Region(x1, y1, x2, y2);" },
+      { num: 70, text: "        }" },
+      { num: 71, text: "    }" },
+      { num: 72, text: "}" },
+      { num: 73, text: "return null; // Prints \"NIST\"" }
+    ];
+
+    const SPEEDS = [0.25, 0.5, 1.0, 2.0, 4.0];
+    const BASE_INTERVAL_MS = 750;
+
+    let appState = {
+      activePresetIndex: 0,
+      N: 3,
+      k: 10,
+      grid: [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+      ],
+      steps: [],
+      bruteForceValid: [],
+      showBruteForce: false,
+      bfPreviewRect: null, // { x1, y1, x2, y2, sum } or null
+      currentStepIndex: 0,
+      isPlaying: false,
+      speedIndex: 2,
+      timerId: null,
+      editingCell: null, // { r, c } or null
+      nextEditCell: null, // { r, c } queued on cell-to-cell click or Tab
+      soundEnabled: true
+    };
+
+    // =========================================================================
+    // 1B. SUBTLE WEB AUDIO API SOUND ENGINE (Zero External Audio Files)
+    // =========================================================================
+    const SoundFX = (() => {
+      let ctx = null;
+      let lastTickTime = 0;
+
+      function getContext() {
+        if (!appState.soundEnabled) return null;
+        if (!ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return null;
+          ctx = new AudioCtx();
+        }
+        if (ctx.state === "suspended") {
+          ctx.resume().catch(() => {});
+        }
+        return ctx;
+      }
+
+      function tone(freq, endFreq, duration, type = "sine", peakGain = 0.045, delay = 0) {
+        const audio = getContext();
+        if (!audio) return;
+        const now = audio.currentTime + delay;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (endFreq && endFreq !== freq) {
+          osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+        }
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(peakGain, now + Math.min(0.008, duration * 0.25));
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(audio.destination);
+        osc.start(now);
+        osc.stop(now + duration + 0.01);
+      }
+
+      return {
+        ui() {
+          tone(660, 520, 0.025, "triangle", 0.03);
+        },
+        step() {
+          const nowMs = performance.now();
+          if (nowMs - lastTickTime < 65) return; // Throttle during 4x playback/scrubbing
+          lastTickTime = nowMs;
+          tone(500, 390, 0.026, "sine", 0.028);
+        },
+        stage() {
+          tone(440, 440, 0.075, "triangle", 0.04, 0);
+          tone(659.25, 659.25, 0.11, "triangle", 0.045, 0.055);
+        },
+        peel() {
+          tone(310, 165, 0.085, "triangle", 0.045, 0);
+        },
+        win() {
+          [523.25, 659.25, 783.99, 987.77].forEach((f, i) => {
+            tone(f, f, 0.18, "triangle", 0.05, i * 0.055);
+          });
+        },
+        nist() {
+          tone(392.0, 370.0, 0.11, "sine", 0.04, 0);
+          tone(311.13, 293.66, 0.16, "sine", 0.04, 0.1);
+        },
+        playForStep(step, prevStep) {
+          if (!step || !appState.soundEnabled) return;
+          if (step.result) {
+            if (step.result.found) this.win();
+            else this.nist();
+            return;
+          }
+          if (prevStep && prevStep.stage !== step.stage) {
+            this.stage();
+            return;
+          }
+          const isPeelOrReset =
+                  (step.gridFocus && step.gridFocus.type === "hazard_reset") ||
+                  (step.histogram && step.histogram.stackMode === "PEELING") ||
+                  (step.codeLines && step.codeLines.includes(31));
+          if (isPeelOrReset) {
+            this.peel();
+            return;
+          }
+          this.step();
+        }
+      };
+    })();
+
+    // =========================================================================
+    // 2. O(N^4) BRUTE-FORCE GROUND-TRUTH CHECKER (Matches Main.bruteForce)
+    // =========================================================================
+    function findAllValidBruteForceRegions(N, k, grid) {
+      const twoK = 2 * k;
+      const P = Array.from({ length: N }, () => Array(N).fill(0));
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          P[i][j] = grid[i][j]
+            + (i > 0 ? P[i - 1][j] : 0)
+            + (j > 0 ? P[i][j - 1] : 0)
+            - (i > 0 && j > 0 ? P[i - 1][j - 1] : 0);
+        }
+      }
+
+      const valid = [];
+      for (let x1 = 0; x1 < N; x1++) {
+        for (let y1 = 0; y1 < N; y1++) {
+          for (let x2 = x1; x2 < N; x2++) {
+            for (let y2 = y1; y2 < N; y2++) {
+              const sum = P[x2][y2]
+                - (x1 > 0 ? P[x1 - 1][y2] : 0)
+                - (y1 > 0 ? P[x2][y1 - 1] : 0)
+                + (x1 > 0 && y1 > 0 ? P[x1 - 1][y1 - 1] : 0);
+              if (k <= sum && sum <= twoK) {
+                valid.push({ x1, y1, x2, y2, sum });
+              }
+            }
+          }
+        }
+      }
+      return valid;
+    }
+
+    // =========================================================================
+    // 3. DETERMINISTIC TRACE GENERATOR (100% Faithful to Main.java)
+    // =========================================================================
+    function generateAlgorithmTrace(N, k, grid) {
+      const steps = [];
+      const twoK = 2 * k;
+
+      const clone2D = (mat) => mat.map(row => [...row]);
+      const P = Array.from({ length: N }, () => Array(N).fill(null));
+
+      const pushStep = (stepObj) => {
+        steps.push({
+          index: steps.length,
+          N,
+          k,
+          twoK,
+          prefixMatrix: clone2D(P),
+          ...stepObj
+        });
+      };
+
+      // -----------------------------------------------------------------------
+      // STAGE 0: 2D Prefix Sum Precomputation (preCachedGridSum)
+      // -----------------------------------------------------------------------
+      pushStep({
+        stage: 0,
+        stageLabel: "Stage 0 · Prefix Sum",
+        title: "Allocate preCachedGridSum[N][N]",
+        desc: `Initializing ${N}×${N} prefix sum table. We will accumulate row-by-row horizontally first, then column-by-column vertically.`,
+        invariant: "2D prefix sums allow querying any axis-aligned subrectangle sum in O(1) time via inclusion-exclusion (4 array lookups).",
+        codeLines: [2],
+        vars: { N, k, "2k": twoK },
+        prefixHighlight: null,
+        gridFocus: null,
+        currentSum: null,
+        histogram: null,
+        result: null
+      });
+
+      // Pass 1: Horizontal row accumulation
+      for (let i = 0; i < N; i++) {
+        P[i][0] = grid[i][0];
+        pushStep({
+          stage: 0,
+          stageLabel: "Stage 0 · Prefix Sum",
+          title: `Horizontal Pass — Row ${i + 1}, Col 1`,
+          desc: `Base case for row ${i + 1}: preCachedGridSum[${i + 1}][1] = grid[${i + 1}][1] = ${grid[i][0]}.`,
+          invariant: "Row prefix pass computes 1D horizontal sums P[i][j] = Σ_{c=0..j} grid[i][c].",
+          codeLines: [3, 4],
+          vars: { i: i + 1, j: 1, val: grid[i][0] },
+          prefixHighlight: { target: [i, 0], sources: [] },
+          gridFocus: { type: "cell", r: i, c: 0 },
+          currentSum: null,
+          histogram: null,
+          result: null
+        });
+
+        for (let j = 1; j < N; j++) {
+          const prev = P[i][j - 1];
+          P[i][j] = prev + grid[i][j];
+          pushStep({
+            stage: 0,
+            stageLabel: "Stage 0 · Prefix Sum",
+            title: `Horizontal Pass — Row ${i + 1}, Col ${j + 1}`,
+            desc: `P[${i + 1}][${j + 1}] = P[${i + 1}][${j}] (${prev}) + grid[${i + 1}][${j + 1}] (${grid[i][j]}) = ${P[i][j]}.`,
+            invariant: "Each horizontal step adds the current cell to the running row prefix sum in O(1).",
+            codeLines: [5, 6],
+            vars: { i: i + 1, j: j + 1, "P[i][j]": P[i][j] },
+            prefixHighlight: { target: [i, j], sources: [[i, j - 1]] },
+            gridFocus: { type: "cell", r: i, c: j },
+            currentSum: null,
+            histogram: null,
+            result: null
+          });
+        }
+      }
+
+      // Pass 2: Vertical column accumulation
+      for (let j = 0; j < N; j++) {
+        for (let i = 1; i < N; i++) {
+          const above = P[i - 1][j];
+          const horiz = P[i][j];
+          P[i][j] = above + horiz;
+          pushStep({
+            stage: 0,
+            stageLabel: "Stage 0 · Prefix Sum",
+            title: `Vertical Pass — Row ${i + 1}, Col ${j + 1}`,
+            desc: `P[${i + 1}][${j + 1}] = P[${i}][${j + 1}] (${above}) + P[${i + 1}][${j + 1}] (${horiz}) = ${P[i][j]}.`,
+            invariant: "After vertical accumulation, P[i][j] equals the exact sum of subrectangle (1, 1) to (i+1, j+1).",
+            codeLines: [8, 9, 10],
+            vars: { i: i + 1, j: j + 1, "P[i][j]": P[i][j] },
+            prefixHighlight: { target: [i, j], sources: [[i - 1, j]] },
+            gridFocus: { type: "cell", r: i, c: j },
+            currentSum: null,
+            histogram: null,
+            result: null
+          });
+        }
+      }
+
+      const gridSum = (x1, y1, x2, y2) => {
+        const total = P[x2][y2];
+        const top = x1 > 0 ? P[x1 - 1][y2] : 0;
+        const left = y1 > 0 ? P[x2][y1 - 1] : 0;
+        const topLeft = (x1 > 0 && y1 > 0) ? P[x1 - 1][y1 - 1] : 0;
+        const sum = total - top - left + topLeft;
+        return { sum, total, top, left, topLeft, x1, y1, x2, y2 };
+      };
+
+      // -----------------------------------------------------------------------
+      // STAGE 1: Single-Cell Valid Answers (1x1 Scan)
+      // -----------------------------------------------------------------------
+      for (let x = 0; x < N; x++) {
+        for (let y = 0; y < N; y++) {
+          const cellValue = grid[x][y];
+          const isValid = k <= cellValue && cellValue <= twoK;
+
+          if (isValid) {
+            pushStep({
+              stage: 1,
+              stageLabel: "Stage 1 · 1×1 Scan",
+              title: `Valid Single Cell Found at (${x + 1}, ${y + 1})!`,
+              desc: `grid[${x + 1}][${y + 1}] = ${cellValue} lies directly inside [${k}, ${twoK}]. Immediately returning 1×1 region (${x + 1}, ${y + 1}, ${x + 1}, ${y + 1}).`,
+              invariant: "Any single cell with value in [k, 2k] is a valid 1×1 subrectangle.",
+              codeLines: [16, 17, 18],
+              vars: { x: x + 1, y: y + 1, cellValue, sum: cellValue },
+              prefixHighlight: null,
+              gridFocus: { type: "winner", x1: x, y1: y, x2: x, y2: y },
+              currentSum: cellValue,
+              histogram: null,
+              result: { found: true, x1: x, y1: y, x2: x, y2: y, sum: cellValue, stage: 1 }
+            });
+            return steps;
+          } else {
+            const classification = cellValue < k ? `< k (Safe)` : `> 2k (Blocked Hazard)`;
+            pushStep({
+              stage: 1,
+              stageLabel: "Stage 1 · 1×1 Scan",
+              title: `Inspect Cell (${x + 1}, ${y + 1}) → ${cellValue}`,
+              desc: `Cell (${x + 1}, ${y + 1}) = ${cellValue} is ${classification}. Not in [${k}, ${twoK}], continuing 1×1 scan.`,
+              invariant: "Once Stage 1 completes without returning, EVERY cell in the grid is strictly < k (usable) or strictly > 2k (forbidden obstacle).",
+              codeLines: [14, 15, 16, 17],
+              vars: { x: x + 1, y: y + 1, cellValue, sum: cellValue },
+              prefixHighlight: null,
+              gridFocus: { type: "cell", r: x, c: y },
+              currentSum: cellValue,
+              histogram: null,
+              result: null
+            });
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // STAGE 2: Single-Row Sliding Window (1xW Scan)
+      // -----------------------------------------------------------------------
+      for (let x = 0; x < N; x++) {
+        let left = 0;
+        let sum = 0;
+
+        pushStep({
+          stage: 2,
+          stageLabel: "Stage 2 · Row Window",
+          title: `Stage 2 — Initialize Sliding Window on Row ${x + 1}`,
+          desc: `Every cell is now < k or > 2k. Starting 1D sliding window on Row ${x + 1} with left = 1, sum = 0.`,
+          invariant: "Because every non-blocked cell has value < k, adding a cell to a sum < k can never jump over [k, 2k] straight to > 2k!",
+          codeLines: [23, 24],
+          vars: { x: x + 1, left: left + 1, right: "—", sum },
+          prefixHighlight: null,
+          gridFocus: { type: "row", row: x },
+          currentSum: sum,
+          histogram: null,
+          result: null
+        });
+
+        for (let right = 0; right < N; right++) {
+          if (grid[x][right] > twoK) {
+            left = right + 1;
+            sum = 0;
+            pushStep({
+              stage: 2,
+              stageLabel: "Stage 2 · Row Window",
+              title: `Row ${x + 1}, Col ${right + 1}: Hazard (${grid[x][right]} > ${twoK}) — Reset Window`,
+              desc: `grid[${x + 1}][${right + 1}] = ${grid[x][right]} > 2k. No valid subrectangle can include this cell. Resetting left = ${left + 1}, sum = 0.`,
+              invariant: "Cells > 2k act as impenetrable walls because all grid values are non-negative.",
+              codeLines: [25, 26, 27],
+              vars: { x: x + 1, left: left + 1, right: right + 1, sum },
+              prefixHighlight: null,
+              gridFocus: { type: "hazard_reset", row: x, col: right },
+              currentSum: sum,
+              histogram: null,
+              result: null
+            });
+          } else {
+            sum += grid[x][right];
+            pushStep({
+              stage: 2,
+              stageLabel: "Stage 2 · Row Window",
+              title: `Row ${x + 1}: Expand Window to [${left + 1}..${right + 1}]`,
+              desc: `Added grid[${x + 1}][${right + 1}] = ${grid[x][right]} (< k). Window [${left + 1}..${right + 1}] sum is now ${sum}.`,
+              invariant: "Since prevSum < k and grid[x][right] < k, new sum < 2k is guaranteed — it cannot overshoot [k, 2k].",
+              codeLines: [25, 28, 29],
+              vars: { x: x + 1, left: left + 1, right: right + 1, sum },
+              prefixHighlight: null,
+              gridFocus: { type: "window", row: x, left, right },
+              currentSum: sum,
+              histogram: null,
+              result: null
+            });
+
+            while (sum > twoK && left <= right) {
+              const removed = grid[x][left];
+              sum -= removed;
+              left++;
+              pushStep({
+                stage: 2,
+                stageLabel: "Stage 2 · Row Window",
+                title: `Row ${x + 1}: Shrink Window Left → [${left + 1}..${right + 1}]`,
+                desc: `Sum exceeded 2k; subtracted grid[${x + 1}][${left}] = ${removed}, advancing left to ${left + 1}. New sum = ${sum}.`,
+                invariant: "Shrinking from the left removes < k at a time, preserving the no-overshoot guarantee.",
+                codeLines: [30, 31],
+                vars: { x: x + 1, left: left + 1, right: right + 1, sum },
+                prefixHighlight: null,
+                gridFocus: { type: "window", row: x, left, right },
+                currentSum: sum,
+                histogram: null,
+                result: null
+              });
+            }
+
+            if (k <= sum && sum <= twoK) {
+              pushStep({
+                stage: 2,
+                stageLabel: "Stage 2 · Row Window",
+                title: `Valid 1×${right - left + 1} Horizontal Strip Found!`,
+                desc: `Window [${left + 1}..${right + 1}] on Row ${x + 1} has sum = ${sum} ∈ [${k}, ${twoK}]. Returning (${x + 1}, ${left + 1}, ${x + 1}, ${right + 1}).`,
+                invariant: "Stage 2 found a valid single-row subrectangle in O(N) per row.",
+                codeLines: [33, 34],
+                vars: { x: x + 1, left: left + 1, right: right + 1, sum },
+                prefixHighlight: null,
+                gridFocus: { type: "winner", x1: x, y1: left, x2: x, y2: right },
+                currentSum: sum,
+                histogram: null,
+                result: { found: true, x1: x, y1: left, x2: x, y2: right, sum, stage: 2 }
+              });
+              return steps;
+            }
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // STAGE 3: 2D Histogram, Monotonic Stack & Row Peeling (HxW Scan)
+      // -----------------------------------------------------------------------
+      const height = Array(N).fill(0);
+
+      for (let x = 0; x < N; x++) {
+        const leftBound = Array(N).fill(null);
+        const rightBound = Array(N).fill(null);
+
+        // 1. Update histogram heights for row x
+        for (let y = 0; y < N; y++) {
+          height[y] = grid[x][y] < k ? height[y] + 1 : 0;
+        }
+
+        pushStep({
+          stage: 3,
+          stageLabel: "Stage 3 · Histogram",
+          title: `Stage 3 (Row ${x + 1}): Update Histogram Heights`,
+          desc: `Stage 2 proved EVERY contiguous horizontal segment of < k cells has sum < k! Updating vertical bar heights for Row ${x + 1}: height = [${height.join(", ")}].`,
+          invariant: "Crucial Invariant: Every horizontal segment of < k cells in any row has sum strictly < k. This makes vertical row-peeling safe!",
+          codeLines: [42, 43, 44],
+          vars: { x: x + 1, heights: `[${height.join(",")}]` },
+          prefixHighlight: null,
+          gridFocus: { type: "row", row: x },
+          currentSum: null,
+          histogram: {
+            row: x,
+            heights: [...height],
+            leftBound: [...leftBound],
+            rightBound: [...rightBound],
+            activeCol: null,
+            span: null,
+            stack: [],
+            stackMode: "HEIGHTS"
+          },
+          result: null
+        });
+
+        // 2. Nearest smaller bar to the left (Monotonic Increasing Stack)
+        let stack = [];
+        for (let y = 0; y < N; y++) {
+          const popped = [];
+          while (stack.length > 0 && height[stack[stack.length - 1]] >= height[y]) {
+            popped.push(stack.pop());
+          }
+          leftBound[y] = stack.length === 0 ? 0 : stack[stack.length - 1] + 1;
+          stack.push(y);
+
+          pushStep({
+            stage: 3,
+            stageLabel: "Stage 3 · Histogram",
+            title: `Left-to-Right Stack: Col ${y + 1} (h=${height[y]}) → leftBound = ${leftBound[y] + 1}`,
+            desc: `${popped.length ? `Popped taller/equal col(s) [${popped.map(c => c + 1).join(", ")}]. ` : ""}Nearest smaller bar to the left determines leftBound[${y + 1}] = ${leftBound[y] + 1}. Pushed col ${y + 1}.`,
+            invariant: "Monotonic increasing stack finds the farthest left column where bar height[y] can extend uninterrupted.",
+            codeLines: [47, 48, 49, 50],
+            vars: { x: x + 1, y: y + 1, "h[y]": height[y], leftBound: leftBound[y] + 1 },
+            prefixHighlight: null,
+            gridFocus: { type: "hist_col", row: x, col: y, h: height[y] },
+            currentSum: null,
+            histogram: {
+              row: x,
+              heights: [...height],
+              leftBound: [...leftBound],
+              rightBound: [...rightBound],
+              activeCol: y,
+              span: { y1: leftBound[y], y2: y },
+              stack: [...stack],
+              stackMode: "LEFT_PASS"
+            },
+            result: null
+          });
+        }
+
+        // 3. Nearest smaller bar to the right (Monotonic Increasing Stack)
+        stack = [];
+        for (let y = N - 1; y >= 0; y--) {
+          const popped = [];
+          while (stack.length > 0 && height[stack[stack.length - 1]] >= height[y]) {
+            popped.push(stack.pop());
+          }
+          rightBound[y] = stack.length === 0 ? N - 1 : stack[stack.length - 1] - 1;
+          stack.push(y);
+
+          pushStep({
+            stage: 3,
+            stageLabel: "Stage 3 · Histogram",
+            title: `Right-to-Left Stack: Col ${y + 1} (h=${height[y]}) → rightBound = ${rightBound[y] + 1}`,
+            desc: `${popped.length ? `Popped taller/equal col(s) [${popped.map(c => c + 1).join(", ")}]. ` : ""}Nearest smaller bar to the right determines rightBound[${y + 1}] = ${rightBound[y] + 1}. Pushed col ${y + 1}.`,
+            invariant: "Combined with leftBound[y], [leftBound[y]..rightBound[y]] forms the unique maximal-width rectangle of height[y].",
+            codeLines: [54, 55, 56, 57],
+            vars: { x: x + 1, y: y + 1, "h[y]": height[y], rightBound: rightBound[y] + 1 },
+            prefixHighlight: null,
+            gridFocus: { type: "hist_col", row: x, col: y, h: height[y] },
+            currentSum: null,
+            histogram: {
+              row: x,
+              heights: [...height],
+              leftBound: [...leftBound],
+              rightBound: [...rightBound],
+              activeCol: y,
+              span: { y1: leftBound[y], y2: rightBound[y] },
+              stack: [...stack],
+              stackMode: "RIGHT_PASS"
+            },
+            result: null
+          });
+        }
+
+        // 4. Evaluate each maximal rectangle & peel bottom rows if sum > 2 * k
+        for (let y = 0; y < N; y++) {
+          if (height[y] === 0) {
+            pushStep({
+              stage: 3,
+              stageLabel: "Stage 3 · Histogram",
+              title: `Evaluate Col ${y + 1}: height = 0 (Skip)`,
+              desc: `Column ${y + 1} has height[y] = 0 (blocked by > 2k cell at row ${x + 1}). Skipping.`,
+              invariant: "Bars of height 0 cannot form a non-empty subrectangle.",
+              codeLines: [60, 61],
+              vars: { x: x + 1, y: y + 1, "h[y]": 0 },
+              prefixHighlight: null,
+              gridFocus: { type: "hazard_reset", row: x, col: y },
+              currentSum: null,
+              histogram: {
+                row: x,
+                heights: [...height],
+                leftBound: [...leftBound],
+                rightBound: [...rightBound],
+                activeCol: y,
+                span: null,
+                stack: [],
+                stackMode: "EVAL"
+              },
+              result: null
+            });
+            continue;
+          }
+
+          const x1 = x - height[y] + 1;
+          const y1 = leftBound[y];
+          let x2 = x;
+          const y2 = rightBound[y];
+          const originalX2 = x;
+
+          let q = gridSum(x1, y1, x2, y2);
+
+          if (q.sum < k) {
+            pushStep({
+              stage: 3,
+              stageLabel: "Stage 3 · Histogram",
+              title: `Maximal Rect (${x1 + 1},${y1 + 1})→(${x2 + 1},${y2 + 1}): Sum = ${q.sum} < ${k}`,
+              desc: `O(1) gridSum = ${q.total} - ${q.top} - ${q.left} + ${q.topLeft} = ${q.sum}. Since ${q.sum} < ${k}, this maximal rectangle is too small.`,
+              invariant: "If a maximal < k rectangle has sum < k, none of its subrectangles can reach k either.",
+              codeLines: [62, 63, 64],
+              vars: { x1: x1 + 1, y1: y1 + 1, x2: x2 + 1, y2: y2 + 1, sum: q.sum },
+              prefixHighlight: { query: q },
+              gridFocus: { type: "candidate_rect", x1, y1, x2, y2, peeledRows: [] },
+              currentSum: q.sum,
+              histogram: {
+                row: x,
+                heights: [...height],
+                leftBound: [...leftBound],
+                rightBound: [...rightBound],
+                activeCol: y,
+                span: { y1, y2 },
+                stack: [],
+                stackMode: "EVAL"
+              },
+              result: null
+            });
+          } else {
+            const peeledRows = [];
+            if (q.sum > twoK) {
+              pushStep({
+                stage: 3,
+                stageLabel: "Stage 3 · Row Peeling",
+                title: `Sum ${q.sum} > ${twoK} — Initiating Row Peeling!`,
+                desc: `Maximal rectangle (${x1 + 1},${y1 + 1})→(${x2 + 1},${y2 + 1}) has sum = ${q.sum} > 2k (${twoK}). Entering while (sum > 2*k) loop to peel bottom rows!`,
+                invariant: "Each row inside this rectangle has sum < k (by Stage 2), so decrementing x2-- reduces sum by < k and MUST land inside [k, 2k]!",
+                codeLines: [63, 64, 65],
+                vars: { x1: x1 + 1, y1: y1 + 1, x2: x2 + 1, y2: y2 + 1, sum: q.sum },
+                prefixHighlight: { query: q },
+                gridFocus: { type: "candidate_rect", x1, y1, x2, y2, peeledRows: [...peeledRows] },
+                currentSum: q.sum,
+                histogram: {
+                  row: x,
+                  heights: [...height],
+                  leftBound: [...leftBound],
+                  rightBound: [...rightBound],
+                  activeCol: y,
+                  span: { y1, y2 },
+                  stack: [],
+                  stackMode: "PEELING"
+                },
+                result: null
+              });
+
+              while (q.sum > twoK) {
+                peeledRows.push(x2);
+                x2--;
+                q = gridSum(x1, y1, x2, y2);
+                pushStep({
+                  stage: 3,
+                  stageLabel: "Stage 3 · Row Peeling",
+                  title: `Peeled Bottom Row ${x2 + 2} → New x2 = ${x2 + 1}, Sum = ${q.sum}`,
+                  desc: `Decremented x2 to ${x2 + 1}. Recomputed O(1) gridSum = ${q.sum} (${q.sum <= twoK ? `now ≤ ${twoK}!` : `still > ${twoK}, peeling again...`}).`,
+                  invariant: "Subtracted row sum was strictly < k, so sum never jumps from > 2k to < k.",
+                  codeLines: [65, 66, 67],
+                  vars: { x1: x1 + 1, y1: y1 + 1, x2: x2 + 1, y2: y2 + 1, sum: q.sum },
+                  prefixHighlight: { query: q },
+                  gridFocus: { type: "candidate_rect", x1, y1, x2, y2, peeledRows: [...peeledRows] },
+                  currentSum: q.sum,
+                  histogram: {
+                    row: x,
+                    heights: [...height],
+                    leftBound: [...leftBound],
+                    rightBound: [...rightBound],
+                    activeCol: y,
+                    span: { y1, y2 },
+                    stack: [],
+                    stackMode: "PEELING"
+                  },
+                  result: null
+                });
+              }
+            }
+
+            pushStep({
+              stage: 3,
+              stageLabel: "Stage 3 · Histogram",
+              title: `Valid Subrectangle Found: (${x1 + 1}, ${y1 + 1}, ${x2 + 1}, ${y2 + 1})!`,
+              desc: `O(1) gridSum = ${q.total} - ${q.top} - ${q.left} + ${q.topLeft} = ${q.sum} ∈ [${k}, ${twoK}]. Returning (${x1 + 1}, ${y1 + 1}, ${x2 + 1}, ${y2 + 1}).`,
+              invariant: "Guaranteed valid solution found in O(N²) total time across the entire grid.",
+              codeLines: [63, 64, 69],
+              vars: { x1: x1 + 1, y1: y1 + 1, x2: x2 + 1, y2: y2 + 1, sum: q.sum },
+              prefixHighlight: { query: q },
+              gridFocus: { type: "winner", x1, y1, x2, y2, peeledRows: [...peeledRows] },
+              currentSum: q.sum,
+              histogram: {
+                row: x,
+                heights: [...height],
+                leftBound: [...leftBound],
+                rightBound: [...rightBound],
+                activeCol: y,
+                span: { y1, y2 },
+                stack: [],
+                stackMode: "FOUND"
+              },
+              result: { found: true, x1, y1, x2, y2, sum: q.sum, stage: 3, peeledCount: originalX2 - x2 }
+            });
+            return steps;
+          }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // TERMINATION: No valid subrectangle exists -> Output "NIST"
+      // -----------------------------------------------------------------------
+      pushStep({
+        stage: 3,
+        stageLabel: "Complete · NIST",
+        title: `No Valid Subrectangle Exists — Output "NIST"`,
+        desc: `All ${N} rows exhausted across Stages 1, 2, and 3 without finding any subrectangle with sum in [${k}, ${twoK}]. Printing "NIST".`,
+        invariant: "Every maximal < k region has total sum < k, and every other region contains a > 2k obstacle; hence no solution exists.",
+        codeLines: [73],
+        vars: { N, k, "2k": twoK, output: "NIST" },
+        prefixHighlight: null,
+        gridFocus: { type: "nist" },
+        currentSum: null,
+        histogram: {
+          row: N - 1,
+          heights: [...height],
+          leftBound: Array(N).fill(null),
+          rightBound: Array(N).fill(null),
+          activeCol: null,
+          span: null,
+          stack: [],
+          stackMode: "DONE"
+        },
+        result: { found: false }
+      });
+
+      return steps;
+    }
+
+    // =========================================================================
+    // 4. UI RENDERING ENGINE
+    // =========================================================================
+    function renderCodeViewerOnce() {
+      const container = document.getElementById("codeViewerContainer");
+      container.innerHTML = JAVA_CODE_LINES.map(line => {
+        if (line.text === "") {
+          return `<div id="code-line-${line.num}" class="h-3 border-l-2 border-transparent"></div>`;
+        }
+        const escaped = line.text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        let styled = escaped;
+        if (line.type === "comment") {
+          styled = `<span class="text-emerald-400/75 italic">${escaped}</span>`;
+        } else {
+          styled = escaped
+            .replace(/\b(for|if|else|while|return|new|int|long)\b/g, '<span class="text-purple-400 font-semibold">$1</span>')
+            .replace(/\b(Region|gridSum|preCachedGridSum|height|leftBound|rightBound|stack)\b/g, '<span class="text-cyan-300">$1</span>')
+            .replace(/("NIST")/g, '<span class="text-amber-300 font-semibold">$1</span>');
+        }
+
+        return `
+          <div id="code-line-${line.num}" class="code-line px-3 py-0.5 flex items-start gap-3 border-l-2 border-transparent transition-colors duration-150">
+            <span class="text-gray-600 select-none w-5 text-right shrink-0">${line.num}</span>
+            <pre class="whitespace-pre text-gray-200">${styled}</pre>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function updateCodeHighlight(activeLines) {
+      const allLines = document.querySelectorAll(".code-line");
+      allLines.forEach(el => {
+        el.classList.remove("bg-amber-500/15", "border-amber-400");
+        el.classList.add("border-transparent");
+      });
+
+      if (!activeLines || activeLines.length === 0) return;
+
+      activeLines.forEach(num => {
+        const el = document.getElementById(`code-line-${num}`);
+        if (el) {
+          el.classList.remove("border-transparent");
+          el.classList.add("bg-amber-500/15", "border-amber-400");
+        }
+      });
+
+      document.getElementById("activeCodeLineBadge").textContent =
+        activeLines.length === 1 ? `Line ${activeLines[0]}` : `Lines ${activeLines[0]}–${activeLines[activeLines.length - 1]}`;
+
+      const firstEl = document.getElementById(`code-line-${activeLines[0]}`);
+      const container = document.getElementById("codeViewerContainer");
+      if (firstEl && container) {
+        const targetScroll = firstEl.offsetTop - container.offsetTop - container.clientHeight / 2 + 20;
+        container.scrollTo({ top: Math.max(0, targetScroll), behavior: "smooth" });
+      }
+    }
+
+    function renderScrubber() {
+      const track = document.getElementById("scrubberTrack");
+      const total = appState.steps.length;
+      if (total === 0) return;
+
+      const stageCounts = { 0: 0, 1: 0, 2: 0, 3: 0 };
+      appState.steps.forEach(s => { stageCounts[s.stage] = (stageCounts[s.stage] || 0) + 1; });
+
+      const stageColors = {
+        0: "bg-indigo-500/55 hover:bg-indigo-500/75",
+        1: "bg-cyan-500/55 hover:bg-cyan-500/75",
+        2: "bg-amber-500/55 hover:bg-amber-500/75",
+        3: "bg-emerald-500/60 hover:bg-emerald-500/80"
+      };
+
+      track.innerHTML = [0, 1, 2, 3].map(st => {
+        const pct = (stageCounts[st] / total) * 100;
+        if (pct <= 0) return "";
+        return `<div style="width: ${pct}%" class="h-full ${stageColors[st]} border-r border-[#0b0f19]/60 transition-opacity"></div>`;
+      }).join("");
+    }
+
+    function updateStageJumpButtons(activeStage) {
+      const stageCounts = { 0: 0, 1: 0, 2: 0, 3: 0 };
+      appState.steps.forEach(s => { stageCounts[s.stage] = (stageCounts[s.stage] || 0) + 1; });
+
+      document.querySelectorAll(".stage-jump-btn").forEach(btn => {
+        const st = Number(btn.dataset.jumpStage);
+        const exists = stageCounts[st] > 0;
+        const isCurrent = st === activeStage;
+        btn.disabled = !exists;
+
+        if (!exists) {
+          btn.className = "stage-jump-btn px-2.5 py-1.5 sm:py-1 rounded-lg text-[11px] font-mono font-semibold text-center border border-gray-800 bg-gray-900/40 text-gray-600 cursor-not-allowed";
+        } else if (isCurrent) {
+          btn.className = "stage-jump-btn px-2.5 py-1.5 sm:py-1 rounded-lg text-[11px] font-mono font-bold text-center border border-amber-400/80 bg-amber-500/20 text-amber-200 ring-1 ring-amber-400/35 transition cursor-pointer shadow-sm";
+        } else {
+          btn.className = "stage-jump-btn px-2.5 py-1.5 sm:py-1 rounded-lg text-[11px] font-mono font-semibold text-center border border-[#1f2937] bg-[#111827] hover:border-amber-500/50 hover:text-amber-300 text-gray-300 transition cursor-pointer";
+        }
+      });
+    }
+
+    function renderBruteForcePanel(step) {
+      const toggleBtn = document.getElementById("toggleBruteForceBtn");
+      const panel = document.getElementById("bruteForcePanel");
+      const summaryEl = document.getElementById("bfSummaryText");
+      const chipsEl = document.getElementById("bfValidChipsList");
+      const clearBtn = document.getElementById("clearBfPreviewBtn");
+
+      if (appState.showBruteForce) {
+        toggleBtn.className = "px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold border border-indigo-400/80 bg-indigo-500/25 text-indigo-200 transition cursor-pointer";
+        panel.classList.remove("hidden");
+      } else {
+        toggleBtn.className = "px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold border border-[#1f2937] bg-[#0b0f19] text-gray-300 hover:border-indigo-400/60 hover:text-indigo-200 transition cursor-pointer";
+        panel.classList.add("hidden");
+        return;
+      }
+
+      const N = appState.N;
+      const totalRects = Math.pow((N * (N + 1)) / 2, 2);
+      const validList = appState.bruteForceValid;
+
+      if (validList.length === 0) {
+        summaryEl.innerHTML = `✓ O(N⁴) Brute Force: <span class="text-rose-300">0 of ${totalRects}</span> subrectangles lie in [${appState.k}, ${2 * appState.k}] — <span class="text-rose-300">NIST</span> confirmed.`;
+        chipsEl.innerHTML = `<span class="text-[11px] font-mono text-gray-400">No valid subrectangles exist in this grid.</span>`;
+        clearBtn.classList.add("hidden");
+        return;
+      }
+
+      summaryEl.innerHTML = `✓ O(N⁴) Brute Force: <span class="text-emerald-300">${validList.length} of ${totalRects}</span> valid subrectangle${validList.length > 1 ? "s" : ""} found in [${appState.k}, ${2 * appState.k}]:`;
+
+      if (appState.bfPreviewRect) {
+        clearBtn.classList.remove("hidden");
+      } else {
+        clearBtn.classList.add("hidden");
+      }
+
+      const maxChips = 10;
+      const shown = validList.slice(0, maxChips);
+      let html = shown.map((rect, idx) => {
+        const isSelected = appState.bfPreviewRect &&
+          appState.bfPreviewRect.x1 === rect.x1 &&
+          appState.bfPreviewRect.y1 === rect.y1 &&
+          appState.bfPreviewRect.x2 === rect.x2 &&
+          appState.bfPreviewRect.y2 === rect.y2;
+
+        const isAlgoWinner = step.result && step.result.found &&
+          step.result.x1 === rect.x1 &&
+          step.result.y1 === rect.y1 &&
+          step.result.x2 === rect.x2 &&
+          step.result.y2 === rect.y2;
+
+        return `
+          <button type="button" data-bf-idx="${idx}"
+            class="bf-rect-chip px-2 py-0.5 rounded-md font-mono text-[11px] border transition cursor-pointer ${
+              isSelected
+                ? "bg-indigo-500/35 border-indigo-300 text-white font-bold ring-1 ring-indigo-300"
+                : "bg-[#0b0f19]/90 border-indigo-500/35 text-indigo-200 hover:border-indigo-400"
+            }">
+            (${rect.x1 + 1},${rect.y1 + 1})→(${rect.x2 + 1},${rect.y2 + 1}) <span class="text-emerald-300">S=${rect.sum}</span>${isAlgoWinner ? ' <span class="text-amber-300">★</span>' : ''}
+          </button>
+        `;
+      }).join("");
+
+      if (validList.length > maxChips) {
+        html += `<span class="text-[11px] font-mono text-gray-400 px-1">+${validList.length - maxChips} more</span>`;
+      }
+
+      chipsEl.innerHTML = html;
+
+      chipsEl.querySelectorAll(".bf-rect-chip").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.dataset.bfIdx);
+          const target = validList[idx];
+          if (appState.bfPreviewRect &&
+              appState.bfPreviewRect.x1 === target.x1 &&
+              appState.bfPreviewRect.y1 === target.y1 &&
+              appState.bfPreviewRect.x2 === target.x2 &&
+              appState.bfPreviewRect.y2 === target.y2) {
+            appState.bfPreviewRect = null;
+          } else {
+            appState.bfPreviewRect = target;
+          }
+          renderCurrentStep();
+        });
+      });
+    }
+
+    function renderMainGrid(step) {
+      const container = document.getElementById("mainGridContainer");
+      const { N, k, grid } = appState;
+      const twoK = 2 * k;
+      const focus = step.gridFocus;
+      const bfRect = appState.showBruteForce ? appState.bfPreviewRect : null;
+
+      container.style.gridTemplateColumns = `repeat(${N}, minmax(0, 1fr))`;
+
+      let html = "";
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const val = grid[r][c];
+          const isEditing = appState.editingCell && appState.editingCell.r === r && appState.editingCell.c === c;
+
+          let baseClasses = "bg-[#0b0f19] border-[#1f2937] text-gray-100";
+          let statusTag = `<span class="text-cyan-400/80">&lt;k</span>`;
+          if (val > twoK) {
+            baseClasses = "bg-rose-950/35 border-rose-500/35 text-rose-200";
+            statusTag = `<span class="text-rose-400 font-semibold">&gt;2k</span>`;
+          } else if (val >= k) {
+            baseClasses = "bg-emerald-950/35 border-emerald-500/40 text-emerald-200";
+            statusTag = `<span class="text-emerald-400 font-semibold">[k,2k]</span>`;
+          } else {
+            baseClasses = "bg-cyan-950/20 border-cyan-500/25 text-cyan-100";
+          }
+
+          let overlayClasses = "";
+          let extraBadge = "";
+
+          if (focus) {
+            if (focus.type === "cell" && focus.r === r && focus.c === c) {
+              overlayClasses = "ring-2 ring-amber-400 bg-amber-500/20 border-amber-400 scale-[1.03] z-10";
+            } else if (focus.type === "row" && focus.row === r) {
+              overlayClasses = "ring-1 ring-amber-400/60 bg-amber-500/10";
+            } else if (focus.type === "hazard_reset" && focus.row === r && focus.col === c) {
+              overlayClasses = "ring-2 ring-rose-500 bg-rose-500/30 border-rose-400 scale-[1.03] z-10";
+              extraBadge = `<span class="absolute bottom-1 right-1.5 text-[9px] font-mono font-bold text-rose-300 bg-rose-950/90 px-1 rounded">RESET</span>`;
+            } else if (focus.type === "window" && focus.row === r && c >= focus.left && c <= focus.right) {
+              overlayClasses = "ring-2 ring-amber-400 bg-amber-500/20 border-amber-400 z-10";
+              if (c === focus.left) extraBadge += `<span class="absolute bottom-1 left-1 text-[9px] font-mono font-bold text-amber-300">L</span>`;
+              if (c === focus.right) extraBadge += `<span class="absolute bottom-1 right-1 text-[9px] font-mono font-bold text-amber-300">R</span>`;
+            } else if (focus.type === "hist_col" && focus.col === c && focus.h > 0 && r >= focus.row - focus.h + 1 && r <= focus.row) {
+              overlayClasses = "ring-2 ring-cyan-400 bg-cyan-500/20 border-cyan-400 z-10";
+            } else if (focus.type === "candidate_rect") {
+              const inActiveRect = r >= focus.x1 && r <= focus.x2 && c >= focus.y1 && c <= focus.y2;
+              const isPeeled = focus.peeledRows && focus.peeledRows.includes(r) && c >= focus.y1 && c <= focus.y2;
+              if (isPeeled) {
+                overlayClasses = "peeled-hatch border-2 border-dashed border-rose-400/90 opacity-85";
+                extraBadge = `<span class="absolute bottom-1 inset-x-1 text-center text-[8px] font-mono font-bold text-rose-200 bg-rose-950/90 rounded px-0.5">PEELED</span>`;
+              } else if (inActiveRect) {
+                overlayClasses = "ring-2 ring-emerald-400 bg-emerald-500/20 border-emerald-400 z-10";
+              }
+            } else if (focus.type === "winner") {
+              const inWinner = r >= focus.x1 && r <= focus.x2 && c >= focus.y1 && c <= focus.y2;
+              const isPeeled = focus.peeledRows && focus.peeledRows.includes(r) && c >= focus.y1 && c <= focus.y2;
+              if (isPeeled) {
+                overlayClasses = "peeled-hatch border-2 border-dashed border-rose-400/80 opacity-75";
+                extraBadge = `<span class="absolute bottom-1 inset-x-1 text-center text-[8px] font-mono font-bold text-rose-200 bg-rose-950/90 rounded px-0.5">PEELED</span>`;
+              } else if (inWinner) {
+                overlayClasses = "winner-cell bg-gradient-to-br from-amber-500/30 to-emerald-500/30 border-2 border-amber-400 text-white z-10";
+                extraBadge = `<span class="absolute bottom-1 right-1.5 text-[9px] font-mono font-bold text-amber-300">★</span>`;
+              }
+            } else if (focus.type === "nist") {
+              overlayClasses = "border-rose-500/40 opacity-80";
+            }
+          }
+
+          // Optional Brute-Force preview overlay
+          if (bfRect && r >= bfRect.x1 && r <= bfRect.x2 && c >= bfRect.y1 && c <= bfRect.y2) {
+            overlayClasses += " ring-2 ring-indigo-400 bg-indigo-500/20 z-10";
+            extraBadge += `<span class="absolute bottom-1 left-1 text-[8px] font-mono font-bold text-indigo-200 bg-indigo-950/90 px-1 rounded">BF</span>`;
+          }
+
+          const fontSizeClass = N <= 3 ? "text-xl sm:text-2xl" : N <= 4 ? "text-lg sm:text-xl" : "text-base sm:text-lg";
+
+          html += `
+            <div data-r="${r}" data-c="${c}" title="grid[${r + 1}][${c + 1}] = ${val}"
+              class="grid-cell relative aspect-square rounded-xl border ${baseClasses} ${overlayClasses} flex flex-col items-center justify-center p-1.5 select-none cursor-pointer transition-all duration-150 hover:border-amber-400/70">
+              <div class="w-full flex items-center justify-between text-[10px] font-mono leading-none px-0.5">
+                <span class="text-gray-500">${r + 1},${c + 1}</span>
+                ${statusTag}
+              </div>
+              <div class="flex-1 flex items-center justify-center w-full">
+                ${isEditing
+                  ? `<input id="inlineCellInput" type="number" min="0" max="1000000000" value="${val}"
+                       class="w-full text-center bg-gray-950 text-amber-300 font-mono font-bold ${fontSizeClass} rounded-lg border border-amber-400 py-0.5 focus:outline-none" />`
+                  : `<span class="font-mono font-bold ${fontSizeClass} tracking-tight truncate max-w-full">${val}</span>`
+                }
+              </div>
+              ${extraBadge}
+            </div>
+          `;
+        }
+      }
+
+      container.innerHTML = html;
+
+      // Queue target cell on mousedown so cell-to-cell clicks transition cleanly before blur rebuilds DOM
+      container.querySelectorAll(".grid-cell").forEach(cellEl => {
+        cellEl.addEventListener("mousedown", (e) => {
+          if (e.target.tagName === "INPUT") return;
+          const r = Number(cellEl.dataset.r);
+          const c = Number(cellEl.dataset.c);
+          if (appState.editingCell) {
+            appState.nextEditCell = { r, c };
+          }
+        });
+
+        cellEl.addEventListener("click", (e) => {
+          if (e.target.tagName === "INPUT") return;
+          const r = Number(cellEl.dataset.r);
+          const c = Number(cellEl.dataset.c);
+          if (!appState.editingCell) {
+            startInlineCellEdit(r, c);
+          }
+        });
+      });
+
+      const inlineInput = document.getElementById("inlineCellInput");
+      if (inlineInput && appState.editingCell) {
+        const { r, c } = appState.editingCell;
+        let finalized = false;
+        inlineInput.focus();
+        inlineInput.select();
+
+        inlineInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            finalized = true;
+            commitInlineCellEdit(inlineInput.value);
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            finalized = true;
+            appState.editingCell = null;
+            appState.nextEditCell = null;
+            renderCurrentStep();
+          } else if (e.key === "Tab") {
+            e.preventDefault();
+            finalized = true;
+            const totalCells = appState.N * appState.N;
+            const flatIdx = r * appState.N + c;
+            const nextFlat = e.shiftKey
+              ? (flatIdx - 1 + totalCells) % totalCells
+              : (flatIdx + 1) % totalCells;
+            appState.nextEditCell = {
+              r: Math.floor(nextFlat / appState.N),
+              c: nextFlat % appState.N
+            };
+            commitInlineCellEdit(inlineInput.value);
+          }
+        });
+
+        inlineInput.addEventListener("blur", () => {
+          if (!finalized) {
+            finalized = true;
+            commitInlineCellEdit(inlineInput.value);
+          }
+        });
+      }
+    }
+
+    function renderSumGauge(step) {
+      const { k, twoK, currentSum } = step;
+      document.getElementById("gaugeKLabel").textContent = `k = ${k}`;
+      document.getElementById("gauge2KLabel").textContent = `2k = ${twoK}`;
+
+      const sumBadge = document.getElementById("gaugeSumValue");
+      const statusPill = document.getElementById("gaugeStatusPill");
+      const marker = document.getElementById("gaugeMarker");
+      const markerLabel = document.getElementById("gaugeMarkerLabel");
+
+      if (currentSum === null || currentSum === undefined) {
+        sumBadge.textContent = "—";
+        sumBadge.className = "px-2.5 py-0.5 rounded-lg font-mono text-sm font-bold bg-gray-800 text-gray-300 border border-gray-700";
+        statusPill.textContent = "NO ACTIVE SUM";
+        statusPill.className = "px-2 py-0.5 rounded-lg text-[11px] font-mono font-semibold bg-gray-800 text-gray-400";
+        marker.style.left = "0%";
+        marker.style.opacity = "0.25";
+        markerLabel.textContent = "S = —";
+        return;
+      }
+
+      sumBadge.textContent = currentSum;
+      marker.style.opacity = "1";
+      markerLabel.textContent = `S=${currentSum}`;
+
+      let pct = 0;
+      if (currentSum <= k) {
+        pct = (currentSum / Math.max(1, k)) * 33.33;
+      } else if (currentSum <= twoK) {
+        pct = 33.33 + ((currentSum - k) / Math.max(1, k)) * 33.33;
+      } else {
+        const excess = Math.min(k, currentSum - twoK);
+        pct = 66.66 + (excess / Math.max(1, k)) * 33.33;
+      }
+      pct = Math.max(2, Math.min(98, pct));
+      marker.style.left = `${pct}%`;
+
+      if (currentSum < k) {
+        sumBadge.className = "px-2.5 py-0.5 rounded-lg font-mono text-sm font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40";
+        statusPill.textContent = "TOO SMALL (< k)";
+        statusPill.className = "px-2 py-0.5 rounded-lg text-[11px] font-mono font-semibold bg-cyan-500/20 text-cyan-300";
+        markerLabel.className = "px-1.5 py-0.5 rounded bg-cyan-400 text-gray-950 font-mono text-[10px] font-extrabold shadow";
+      } else if (currentSum <= twoK) {
+        sumBadge.className = "px-2.5 py-0.5 rounded-lg font-mono text-sm font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-400";
+        statusPill.textContent = "VALID HEIST [k, 2k] ★";
+        statusPill.className = "px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-500/40";
+        markerLabel.className = "px-1.5 py-0.5 rounded bg-emerald-400 text-gray-950 font-mono text-[10px] font-extrabold shadow";
+      } else {
+        sumBadge.className = "px-2.5 py-0.5 rounded-lg font-mono text-sm font-bold bg-rose-500/25 text-rose-300 border border-rose-500/50";
+        statusPill.textContent = "ALARM (> 2k) — PEEL/SHRINK";
+        statusPill.className = "px-2 py-0.5 rounded-lg text-[11px] font-mono font-semibold bg-rose-500/25 text-rose-300";
+        markerLabel.className = "px-1.5 py-0.5 rounded bg-rose-500 text-white font-mono text-[10px] font-extrabold shadow";
+      }
+    }
+
+    function renderHistogramAndStack(step) {
+      const { N } = appState;
+      const hist = step.histogram;
+      const barsContainer = document.getElementById("histogramBarsContainer");
+      const boundsStrip = document.getElementById("histogramBoundsStrip");
+      const arraysTable = document.getElementById("histogramArraysTable");
+      const stackContainer = document.getElementById("monotonicStackContainer");
+      const rowBadge = document.getElementById("histRowBadge");
+      const spanInfo = document.getElementById("histSpanInfo");
+      const stackModeBadge = document.getElementById("stackModeBadge");
+      const stackTopLabel = document.getElementById("stackTopLabel");
+
+      const heights = hist ? hist.heights : Array(N).fill(0);
+      const lBounds = hist ? hist.leftBound : Array(N).fill(null);
+      const rBounds = hist ? hist.rightBound : Array(N).fill(null);
+      const maxH = Math.max(N, ...heights, 1);
+
+      rowBadge.textContent = hist ? `Row x = ${hist.row + 1}` : "Row x = —";
+      if (hist && hist.span) {
+        spanInfo.textContent = `Span: [${hist.span.y1 + 1} .. ${hist.span.y2 + 1}]`;
+      } else {
+        spanInfo.textContent = "Span: —";
+      }
+
+      // Render histogram bars
+      barsContainer.innerHTML = heights.map((h, col) => {
+        const heightPct = (h / maxH) * 100;
+        const isActive = hist && hist.activeCol === col;
+        const inSpan = hist && hist.span && col >= hist.span.y1 && col <= hist.span.y2;
+
+        let barColor = "bg-cyan-500/35 border-cyan-400/50";
+        if (h === 0) {
+          barColor = "bg-rose-500/25 border-rose-500/40";
+        } else if (isActive) {
+          barColor = "bg-amber-400/80 border-amber-300 shadow-lg shadow-amber-500/25";
+        } else if (inSpan) {
+          barColor = "bg-emerald-400/65 border-emerald-300";
+        }
+
+        return `
+          <div class="flex-1 h-full flex flex-col items-center justify-end gap-1">
+            <span class="text-[11px] font-mono font-bold ${isActive ? 'text-amber-300' : h === 0 ? 'text-rose-400' : 'text-cyan-300'}">${h}</span>
+            <div style="height: ${Math.max(6, heightPct)}%"
+              class="w-full max-w-[44px] rounded-t-lg border-t-2 border-x ${barColor} transition-all duration-200">
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Render column labels & bracket span indicator
+      boundsStrip.innerHTML = heights.map((_, col) => {
+        const inSpan = hist && hist.span && col >= hist.span.y1 && col <= hist.span.y2;
+        const isLeft = hist && hist.span && col === hist.span.y1;
+        const isRight = hist && hist.span && col === hist.span.y2;
+        return `
+          <div class="flex-1 text-center">
+            <div class="h-1.5 mb-1 rounded-full ${inSpan ? 'bg-amber-400' : 'bg-transparent'}"></div>
+            <span class="${inSpan ? 'text-amber-300 font-bold' : 'text-gray-500'}">
+              ${isLeft ? '[' : ''}${col + 1}${isRight ? ']' : ''}
+            </span>
+          </div>
+        `;
+      }).join("");
+
+      // Render explicit height[], leftBound[], rightBound[] aligned telemetry strip
+      const buildRowCells = (arr, formatter, activeCheck, activeCls, baseCls) => {
+        return arr.map((val, col) => {
+          const formatted = formatter(val);
+          const isAct = activeCheck(col, val);
+          return `<div class="text-center py-0.5 rounded ${isAct ? activeCls : baseCls}">${formatted}</div>`;
+        }).join("");
+      };
+
+      const gridColsStyle = `grid-template-columns: 74px repeat(${N}, minmax(0, 1fr));`;
+      arraysTable.innerHTML = `
+        <div class="grid gap-1 items-center mb-1" style="${gridColsStyle}">
+          <span class="text-gray-500 truncate">height[y]</span>
+          ${buildRowCells(
+            heights,
+            v => (hist ? v : "—"),
+            (col) => hist && hist.activeCol === col,
+            "bg-cyan-500/20 text-cyan-200 font-bold",
+            "bg-[#111827] text-gray-300"
+          )}
+        </div>
+        <div class="grid gap-1 items-center mb-1" style="${gridColsStyle}">
+          <span class="text-gray-500 truncate">leftBound</span>
+          ${buildRowCells(
+            lBounds,
+            v => (v === null ? "—" : v + 1),
+            (col, v) => hist && v !== null && hist.activeCol === col,
+            "bg-amber-500/20 text-amber-200 font-bold",
+            "bg-[#111827] text-gray-400"
+          )}
+        </div>
+        <div class="grid gap-1 items-center" style="${gridColsStyle}">
+          <span class="text-gray-500 truncate">rightBound</span>
+          ${buildRowCells(
+            rBounds,
+            v => (v === null ? "—" : v + 1),
+            (col, v) => hist && v !== null && hist.activeCol === col,
+            "bg-purple-500/20 text-purple-200 font-bold",
+            "bg-[#111827] text-gray-400"
+          )}
+        </div>
+      `;
+
+      // Render Monotonic Stack slots
+      if (!hist) {
+        stackModeBadge.textContent = "STAGE 3 IDLE";
+        stackModeBadge.className = "px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 text-[10px]";
+        stackTopLabel.textContent = "top = -1";
+        stackContainer.innerHTML = `<div class="m-auto text-[11px] font-mono text-gray-600 text-center">Activates in Stage 3</div>`;
+        return;
+      }
+
+      const modeLabels = {
+        HEIGHTS: ["HEIGHT UPDATE", "bg-cyan-500/20 text-cyan-300"],
+        LEFT_PASS: ["LEFT-TO-RIGHT PASS", "bg-amber-500/20 text-amber-300"],
+        RIGHT_PASS: ["RIGHT-TO-LEFT PASS", "bg-purple-500/20 text-purple-300"],
+        EVAL: ["RECT EVALUATION", "bg-emerald-500/20 text-emerald-300"],
+        PEELING: ["ROW PEELING (x2--)", "bg-rose-500/20 text-rose-300"],
+        FOUND: ["SOLUTION FOUND", "bg-emerald-500/25 text-emerald-300"],
+        DONE: ["COMPLETE", "bg-gray-800 text-gray-400"]
+      };
+      const [mText, mClass] = modeLabels[hist.stackMode] || ["ACTIVE", "bg-gray-800 text-gray-300"];
+      stackModeBadge.textContent = mText;
+      stackModeBadge.className = `px-1.5 py-0.5 rounded text-[10px] font-semibold ${mClass}`;
+
+      const stk = hist.stack || [];
+      stackTopLabel.textContent = `top = ${stk.length - 1}`;
+
+      if (stk.length === 0) {
+        stackContainer.innerHTML = `<div class="m-auto text-[11px] font-mono text-gray-500 text-center">[ Empty Stack ]</div>`;
+      } else {
+        stackContainer.innerHTML = stk.map((colIdx, idx) => {
+          const isTop = idx === stk.length - 1;
+          return `
+            <div class="px-2.5 py-1 rounded-lg border font-mono text-xs flex items-center justify-between ${
+              isTop
+                ? "bg-amber-500/20 border-amber-400/70 text-amber-200 font-bold"
+                : "bg-[#111827] border-gray-700 text-gray-300"
+            }">
+              <span>col ${colIdx + 1}</span>
+              <span class="text-cyan-300">h = ${heights[colIdx]}</span>
+              ${isTop ? `<span class="text-[9px] uppercase bg-amber-400 text-gray-950 px-1 rounded font-extrabold">TOP</span>` : ""}
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    function renderPrefixSumInspector(step) {
+      const { N } = appState;
+      const P = step.prefixMatrix;
+      const ph = step.prefixHighlight;
+      const container = document.getElementById("prefixMatrixContainer");
+      const eqBox = document.getElementById("inclusionExclusionBox");
+
+      container.style.gridTemplateColumns = `repeat(${N}, minmax(0, 1fr))`;
+
+      const q = ph && ph.query ? ph.query : null;
+
+      let html = "";
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < N; j++) {
+          const val = P[i][j];
+          let cellStyle = "bg-[#0b0f19] border-[#1f2937] text-gray-300";
+          let roleBadge = "";
+
+          if (ph && ph.target && ph.target[0] === i && ph.target[1] === j) {
+            cellStyle = "bg-indigo-500/25 border-indigo-400 text-white font-bold ring-1 ring-indigo-400";
+          } else if (ph && ph.sources && ph.sources.some(([sr, sc]) => sr === i && sc === j)) {
+            cellStyle = "bg-cyan-500/20 border-cyan-400/70 text-cyan-200";
+          } else if (q) {
+            const isTotal = i === q.x2 && j === q.y2;
+            const isTop = q.x1 > 0 && i === q.x1 - 1 && j === q.y2;
+            const isLeft = q.y1 > 0 && i === q.x2 && j === q.y1 - 1;
+            const isTopLeft = q.x1 > 0 && q.y1 > 0 && i === q.x1 - 1 && j === q.y1 - 1;
+
+            if (isTotal) {
+              cellStyle = "bg-emerald-500/25 border-emerald-400 text-emerald-200 font-bold ring-1 ring-emerald-400";
+              roleBadge = `<span class="text-[9px] text-emerald-400 font-bold">+tot</span>`;
+            } else if (isTop) {
+              cellStyle = "bg-rose-500/25 border-rose-400 text-rose-200 font-bold";
+              roleBadge = `<span class="text-[9px] text-rose-400 font-bold">-top</span>`;
+            } else if (isLeft) {
+              cellStyle = "bg-rose-500/25 border-rose-400 text-rose-200 font-bold";
+              roleBadge = `<span class="text-[9px] text-rose-400 font-bold">-lft</span>`;
+            } else if (isTopLeft) {
+              cellStyle = "bg-cyan-500/25 border-cyan-400 text-cyan-200 font-bold";
+              roleBadge = `<span class="text-[9px] text-cyan-400 font-bold">+tl</span>`;
+            }
+          }
+
+          html += `
+            <div title="P[${i + 1}][${j + 1}] = ${val === null ? 'uncomputed' : val}"
+              class="rounded-lg border ${cellStyle} px-2 py-1.5 font-mono text-xs flex flex-col justify-between transition-colors">
+              <div class="flex items-center justify-between text-[9px] text-gray-500">
+                <span>${i + 1},${j + 1}</span>
+                ${roleBadge}
+              </div>
+              <div class="text-center font-semibold mt-0.5 truncate ${val === null ? 'text-gray-600' : ''}">
+                ${val === null ? "—" : val}
+              </div>
+            </div>
+          `;
+        }
+      }
+      container.innerHTML = html;
+
+      if (q) {
+        eqBox.innerHTML = `
+          <span class="text-gray-400">gridSum(${q.x1 + 1},${q.y1 + 1}→${q.x2 + 1},${q.y2 + 1}) =</span>
+          <span class="text-emerald-400 font-bold">${q.total}</span>
+          <span class="text-rose-400"> - ${q.top}</span>
+          <span class="text-rose-400"> - ${q.left}</span>
+          <span class="text-cyan-400"> + ${q.topLeft}</span>
+          <span class="text-white font-bold"> = ${q.sum}</span>
+        `;
+      } else if (step.stage === 0) {
+        eqBox.innerHTML = `<span class="text-indigo-300">Building O(1) lookup table:</span> P[i][j] = Σ grid[0..i][0..j]`;
+      } else {
+        eqBox.innerHTML = `<span class="text-gray-500">gridSum(x1,y1,x2,y2):</span> Used in Stage 3 for O(1) rectangle queries.`;
+      }
+    }
+
+    function renderNarrationAndOutput(step) {
+      const stageStyles = {
+        0: ["STAGE 0 · PREFIX SUM", "bg-indigo-500/20 text-indigo-300 border-indigo-500/35"],
+        1: ["STAGE 1 · 1×1 SCAN", "bg-cyan-500/20 text-cyan-300 border-cyan-500/35"],
+        2: ["STAGE 2 · ROW WINDOW", "bg-amber-500/20 text-amber-300 border-amber-500/35"],
+        3: ["STAGE 3 · HISTOGRAM", "bg-emerald-500/20 text-emerald-300 border-emerald-500/35"]
+      };
+      const [badgeText, badgeCls] = stageStyles[step.stage] || stageStyles[0];
+
+      const gridStageBadge = document.getElementById("gridStageBadge");
+      gridStageBadge.textContent = badgeText;
+      gridStageBadge.className = `px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-mono font-bold whitespace-nowrap shrink-0 border ${badgeCls}`;
+
+      const narrPill = document.getElementById("narrationStagePill");
+      narrPill.textContent = step.stageLabel;
+      narrPill.className = `px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border ${badgeCls}`;
+
+      document.getElementById("narrationStepId").textContent = `Step ${step.index + 1} of ${appState.steps.length}`;
+      document.getElementById("narrationTitle").textContent = step.title;
+      document.getElementById("narrationDesc").textContent = step.desc;
+      document.getElementById("invariantText").textContent = step.invariant;
+
+      // Variable Watch Chips
+      const varGrid = document.getElementById("variableWatchGrid");
+      const entries = Object.entries(step.vars || {});
+      varGrid.innerHTML = entries.map(([kName, vVal]) => `
+        <div class="bg-[#0b0f19] border border-[#1f2937] rounded-lg px-2 py-1 font-mono text-[11px] flex items-center justify-between gap-1">
+          <span class="text-gray-400 truncate">${kName}</span>
+          <span class="text-amber-300 font-bold truncate">${vVal}</span>
+        </div>
+      `).join("");
+
+      // Final Output Banner
+      const banner = document.getElementById("finalOutputBanner");
+      const bfCount = appState.bruteForceValid.length;
+      if (step.result) {
+        banner.classList.remove("hidden");
+        if (step.result.found) {
+          const { x1, y1, x2, y2, sum, stage, peeledCount } = step.result;
+          banner.className = "mb-3 rounded-xl px-4 py-2.5 border border-emerald-400/60 bg-gradient-to-r from-emerald-500/20 via-amber-500/15 to-emerald-500/20 flex flex-wrap items-center justify-between gap-2 shadow-lg";
+          document.getElementById("finalOutputIcon").textContent = "🏆";
+          document.getElementById("finalOutputTitle").className = "font-mono text-sm font-extrabold text-amber-300";
+          document.getElementById("finalOutputTitle").textContent = `OUTPUT: ${x1 + 1} ${y1 + 1} ${x2 + 1} ${y2 + 1}`;
+          document.getElementById("finalOutputSubtitle").className = "text-xs text-emerald-200";
+          document.getElementById("finalOutputSubtitle").textContent =
+            `Valid subrectangle sum S = ${sum} ∈ [${step.k}, ${step.twoK}] found in Stage ${stage}${peeledCount ? ` (after peeling ${peeledCount} row${peeledCount > 1 ? 's' : ''})` : ""}.`;
+          document.getElementById("finalOutputVerifiedTag").textContent = `✓ O(N⁴) Verified (1 of ${bfCount})`;
+          document.getElementById("finalOutputTag").className = "px-2.5 py-1 rounded-lg font-mono text-xs font-bold bg-emerald-500 text-gray-950";
+          document.getElementById("finalOutputTag").textContent = `SUM = ${sum}`;
+        } else {
+          banner.className = "mb-3 rounded-xl px-4 py-2.5 border border-rose-500/60 bg-rose-500/15 flex flex-wrap items-center justify-between gap-2";
+          document.getElementById("finalOutputIcon").textContent = "🚫";
+          document.getElementById("finalOutputTitle").className = "font-mono text-sm font-extrabold text-rose-300";
+          document.getElementById("finalOutputTitle").textContent = `OUTPUT: NIST`;
+          document.getElementById("finalOutputSubtitle").className = "text-xs text-rose-200/90";
+          document.getElementById("finalOutputSubtitle").textContent = `Proven impossible: no subrectangle has sum in [${step.k}, ${step.twoK}].`;
+          document.getElementById("finalOutputVerifiedTag").textContent = `✓ O(N⁴) Verified (0 valid)`;
+          document.getElementById("finalOutputTag").className = "px-2.5 py-1 rounded-lg font-mono text-xs font-bold bg-rose-500 text-white";
+          document.getElementById("finalOutputTag").textContent = "IMPOSSIBLE";
+        }
+      } else {
+        banner.classList.add("hidden");
+      }
+    }
+
+    function renderCurrentStep() {
+      const total = appState.steps.length;
+      if (total === 0) return;
+
+      const idx = Math.max(0, Math.min(total - 1, appState.currentStepIndex));
+      appState.currentStepIndex = idx;
+      const step = appState.steps[idx];
+
+      document.getElementById("stepCurrent").textContent = idx + 1;
+      document.getElementById("stepTotal").textContent = total;
+      document.getElementById("doubleKBadge").textContent = `2k = ${2 * appState.k}`;
+
+      const n = appState.N;
+      const n2Ops = n * n;
+      const n4Ops = Math.pow((n * (n + 1)) / 2, 2);
+      document.getElementById("opsComparisonBadge").textContent = `${n2Ops} vs ${n4Ops} rects`;
+
+      const pct = total <= 1 ? 100 : (idx / (total - 1)) * 100;
+      document.getElementById("scrubberThumb").style.left = `${pct}%`;
+
+      updateStageJumpButtons(step.stage);
+      renderBruteForcePanel(step);
+      renderMainGrid(step);
+      renderSumGauge(step);
+      renderHistogramAndStack(step);
+      renderPrefixSumInspector(step);
+      renderNarrationAndOutput(step);
+      updateCodeHighlight(step.codeLines);
+    }
+
+    // =========================================================================
+    // 5. PLAYBACK, STDIN MODAL & INTERACTION CONTROLLERS
+    // =========================================================================
+    function rebuildAndRender(resetToStart = true) {
+      pausePlayback();
+      appState.editingCell = null;
+      appState.bfPreviewRect = null;
+      appState.bruteForceValid = findAllValidBruteForceRegions(appState.N, appState.k, appState.grid);
+      appState.steps = generateAlgorithmTrace(appState.N, appState.k, appState.grid);
+      if (resetToStart) {
+        appState.currentStepIndex = 0;
+      } else {
+        appState.currentStepIndex = Math.min(appState.currentStepIndex, appState.steps.length - 1);
+      }
+      renderScrubber();
+      renderCurrentStep();
+      updatePresetHighlight();
+    }
+
+      function updatePresetHighlight() {
+        document.querySelectorAll(".preset-btn").forEach((btn, i) => {
+          if (i === appState.activePresetIndex) {
+            btn.className = "preset-btn shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-amber-400/70 bg-amber-500/20 text-amber-200 transition cursor-pointer shadow-sm";
+          } else {
+            btn.className = "preset-btn shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[#1f2937] bg-[#0b0f19] hover:border-gray-600 text-gray-300 transition cursor-pointer";
+          }
+        });
+      }
+
+    function loadPreset(presetIndex) {
+      const p = PRESETS[presetIndex];
+      if (!p) return;
+      appState.activePresetIndex = presetIndex;
+      appState.N = p.N;
+      appState.k = p.k;
+      appState.grid = p.grid.map(row => [...row]);
+
+      document.getElementById("gridSizeSelect").value = String(p.N);
+      document.getElementById("targetKInput").value = String(p.k);
+      rebuildAndRender(true);
+    }
+
+    function startInlineCellEdit(r, c) {
+      pausePlayback();
+      appState.editingCell = { r, c };
+      renderCurrentStep();
+    }
+
+    function commitInlineCellEdit(rawVal) {
+      if (!appState.editingCell) return;
+      const { r, c } = appState.editingCell;
+      let parsed = parseInt(rawVal, 10);
+      if (isNaN(parsed) || parsed < 0) parsed = 0;
+      if (parsed > 1000000000) parsed = 1000000000;
+
+      const changed = appState.grid[r][c] !== parsed;
+      appState.grid[r][c] = parsed;
+      if (changed) {
+        appState.activePresetIndex = -1;
+      }
+
+      const queuedNext = appState.nextEditCell;
+      appState.nextEditCell = null;
+      appState.editingCell = null;
+
+      if (changed) {
+        rebuildAndRender(true);
+      } else {
+        renderCurrentStep();
+      }
+
+      if (queuedNext) {
+        startInlineCellEdit(queuedNext.r, queuedNext.c);
+      }
+    }
+
+    function randomizeGrid() {
+      const N = appState.N;
+      const k = appState.k;
+      const newGrid = Array.from({ length: N }, () =>
+        Array.from({ length: N }, () => {
+          const roll = Math.random();
+          if (roll < 0.72) {
+            return Math.max(0, Math.floor(Math.random() * Math.max(1, Math.ceil(k * 0.55))));
+          } else if (roll < 0.94) {
+            return 2 * k + 1 + Math.floor(Math.random() * Math.max(5, Math.ceil(k * 0.5)));
+          } else {
+            return k + Math.floor(Math.random() * (k + 1));
+          }
+        })
+      );
+      appState.grid = newGrid;
+      appState.activePresetIndex = -1;
+      rebuildAndRender(true);
+    }
+
+    function formatCurrentAsStdin() {
+      const lines = [`${appState.N} ${appState.k}`];
+      for (let r = 0; r < appState.N; r++) {
+        lines.push(appState.grid[r].join(" "));
+      }
+      return lines.join("\n");
+    }
+
+    function openStdinModal() {
+      pausePlayback();
+      const modal = document.getElementById("stdinModal");
+      const textarea = document.getElementById("stdinTextarea");
+      const errBox = document.getElementById("stdinErrorMsg");
+      textarea.value = formatCurrentAsStdin();
+      errBox.classList.add("hidden");
+      modal.classList.remove("hidden");
+      textarea.focus();
+      textarea.select();
+    }
+
+    function closeStdinModal() {
+      document.getElementById("stdinModal").classList.add("hidden");
+    }
+
+    function applyStdinInput() {
+      const raw = document.getElementById("stdinTextarea").value.trim();
+      const errBox = document.getElementById("stdinErrorMsg");
+
+      const showError = (msg) => {
+        errBox.textContent = msg;
+        errBox.classList.remove("hidden");
+      };
+
+      if (!raw) {
+        showError("Input is empty. Provide 'N k' followed by N rows of N integers.");
+        return;
+      }
+
+      const tokens = raw.split(/\s+/);
+      if (tokens.length < 2) {
+        showError("First line must contain two integers: N and k.");
+        return;
+      }
+
+      const parsedN = Number(tokens[0]);
+      const parsedK = Number(tokens[1]);
+
+      if (!Number.isInteger(parsedN) || parsedN < 1 || parsedN > 6) {
+        showError("Visualizer supports integer grid size 1 ≤ N ≤ 6.");
+        return;
+      }
+      if (!Number.isInteger(parsedK) || parsedK < 1 || parsedK > 1000000000) {
+        showError("Target k must be an integer with 1 ≤ k ≤ 10^9.");
+        return;
+      }
+
+      const expectedCells = parsedN * parsedN;
+      if (tokens.length - 2 !== expectedCells) {
+        showError(`Expected ${expectedCells} grid values for N=${parsedN}, but found ${tokens.length - 2}.`);
+        return;
+      }
+
+      const parsedGrid = [];
+      let idx = 2;
+      for (let r = 0; r < parsedN; r++) {
+        const row = [];
+        for (let c = 0; c < parsedN; c++) {
+          const val = Number(tokens[idx++]);
+          if (!Number.isInteger(val) || val < 0 || val > 1000000000) {
+            showError(`Invalid cell at (${r + 1}, ${c + 1}): values must be integers in [0, 10^9].`);
+            return;
+          }
+          row.push(val);
+        }
+        parsedGrid.push(row);
+      }
+
+      appState.N = parsedN;
+      appState.k = parsedK;
+      appState.grid = parsedGrid;
+      appState.activePresetIndex = -1;
+
+      document.getElementById("gridSizeSelect").value = String(parsedN);
+      document.getElementById("targetKInput").value = String(parsedK);
+      closeStdinModal();
+      rebuildAndRender(true);
+      showToast(`Loaded N=${parsedN}, k=${parsedK} from stdin`);
+    }
+
+    function startPlayback() {
+      if (appState.isPlaying) return;
+      if (appState.currentStepIndex >= appState.steps.length - 1) {
+        appState.currentStepIndex = 0;
+      }
+      appState.isPlaying = true;
+      updatePlayPauseButton();
+
+      const delay = BASE_INTERVAL_MS / SPEEDS[appState.speedIndex];
+      appState.timerId = setInterval(() => {
+        if (appState.currentStepIndex < appState.steps.length - 1) {
+          const prev = appState.steps[appState.currentStepIndex];
+          appState.currentStepIndex++;
+          renderCurrentStep();
+          SoundFX.playForStep(appState.steps[appState.currentStepIndex], prev);
+        } else {
+          pausePlayback();
+        }
+      }, delay);
+    }
+
+    function pausePlayback() {
+      appState.isPlaying = false;
+      if (appState.timerId) {
+        clearInterval(appState.timerId);
+        appState.timerId = null;
+      }
+      updatePlayPauseButton();
+    }
+
+    function togglePlayback() {
+      if (appState.isPlaying) pausePlayback();
+      else startPlayback();
+    }
+
+    function updatePlayPauseButton() {
+      const iconPlay = document.getElementById("iconPlay");
+      const iconPause = document.getElementById("iconPause");
+      const label = document.getElementById("playPauseLabel");
+      if (appState.isPlaying) {
+        iconPlay.classList.add("hidden");
+        iconPause.classList.remove("hidden");
+        label.textContent = "Pause";
+      } else {
+        iconPlay.classList.remove("hidden");
+        iconPause.classList.add("hidden");
+        label.textContent = "Play";
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toastBanner");
+      document.getElementById("toastText").textContent = msg;
+      toast.classList.remove("opacity-0", "translate-y-3");
+      toast.classList.add("opacity-100", "translate-y-0");
+      setTimeout(() => {
+        toast.classList.remove("opacity-100", "translate-y-0");
+        toast.classList.add("opacity-0", "translate-y-3");
+      }, 2600);
+    }
+
+    // =========================================================================
+    // 6. INITIALIZATION & PERMANENTLY CLEAN STANDALONE HTML EXPORT
+    // =========================================================================
+    function exportStandaloneHtml() {
+      const clone = document.documentElement.cloneNode(true);
+
+      // Strip any runtime <style> tags injected by Tailwind Play CDN (keep only data-keep-style)
+      clone.querySelectorAll("head style").forEach(styleEl => {
+        if (!styleEl.hasAttribute("data-keep-style")) {
+          styleEl.remove();
+        }
+      });
+
+      // Reset transient overlays & modals
+      const toast = clone.querySelector("#toastBanner");
+      if (toast) {
+        toast.classList.add("opacity-0", "translate-y-3");
+        toast.classList.remove("opacity-100", "translate-y-0");
+      }
+      const tooltip = clone.querySelector("#scrubberTooltip");
+      if (tooltip) tooltip.classList.add("hidden");
+      const modal = clone.querySelector("#stdinModal");
+      if (modal) modal.classList.add("hidden");
+      const banner = clone.querySelector("#finalOutputBanner");
+      if (banner) banner.classList.add("hidden");
+
+      // Clear dynamically populated containers so startup renders cleanly without duplicates
+      [
+        "#scrubberTrack",
+        "#mainGridContainer",
+        "#histogramBarsContainer",
+        "#histogramBoundsStrip",
+        "#histogramArraysTable",
+        "#monotonicStackContainer",
+        "#variableWatchGrid",
+        "#prefixMatrixContainer",
+        "#codeViewerContainer",
+        "#bfValidChipsList"
+      ].forEach(sel => {
+        const el = clone.querySelector(sel);
+        if (el) el.innerHTML = "";
+      });
+
+      // Embed current custom state (N, k, grid, activePresetIndex, stepIndex)
+      const stateScript = clone.querySelector("#initialStateScript");
+      if (stateScript) {
+        const exportedPayload = {
+          activePresetIndex: appState.activePresetIndex,
+          N: appState.N,
+          k: appState.k,
+          grid: appState.grid,
+          currentStepIndex: appState.currentStepIndex,
+          showBruteForce: appState.showBruteForce,
+          soundEnabled: appState.soundEnabled
+        };
+        stateScript.textContent = `window.__INITIAL_STATE__ = ${JSON.stringify(exportedPayload)};`;
+      }
+
+      const htmlOutput = "<!DOCTYPE html>\n" + clone.outerHTML;
+      const blob = new Blob([htmlOutput], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "karaj_algorithm_visualizer.html";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Exported clean standalone karaj_algorithm_visualizer.html");
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderCodeViewerOnce();
+
+      // Sound toggle button
+      const updateSoundToggleUI = () => {
+        document.getElementById("iconSoundOn").classList.toggle("hidden", !appState.soundEnabled);
+        document.getElementById("iconSoundOff").classList.toggle("hidden", appState.soundEnabled);
+        document.getElementById("soundToggleLabel").textContent = appState.soundEnabled ? "SFX On" : "Muted";
+      };
+      document.getElementById("soundToggleBtn").addEventListener("click", () => {
+        appState.soundEnabled = !appState.soundEnabled;
+        updateSoundToggleUI();
+        if (appState.soundEnabled) SoundFX.ui();
+      });
+
+      // Export standalone .html button
+      document.getElementById("exportHtmlBtn").addEventListener("click", () => {
+        SoundFX.ui();
+        exportStandaloneHtml();
+      });
+
+      // Preset buttons
+      document.querySelectorAll(".preset-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          SoundFX.ui();
+          loadPreset(Number(btn.dataset.preset));
+        });
+      });
+
+      // Grid size selector
+      document.getElementById("gridSizeSelect").addEventListener("change", (e) => {
+        const newN = Number(e.target.value);
+        const oldGrid = appState.grid;
+        const resized = Array.from({ length: newN }, (_, r) =>
+          Array.from({ length: newN }, (_, c) => {
+            if (r < oldGrid.length && c < oldGrid[r].length) return oldGrid[r][c];
+            return Math.max(0, Math.floor(Math.random() * Math.max(2, Math.ceil(appState.k * 0.5))));
+          })
+        );
+        appState.N = newN;
+        appState.grid = resized;
+        appState.activePresetIndex = -1;
+        rebuildAndRender(true);
+      });
+
+      // Target k input
+      document.getElementById("targetKInput").addEventListener("change", (e) => {
+        let newK = parseInt(e.target.value, 10);
+        if (isNaN(newK) || newK < 1) newK = 1;
+        if (newK > 1000000000) newK = 1000000000;
+        e.target.value = String(newK);
+        appState.k = newK;
+        appState.activePresetIndex = -1;
+        rebuildAndRender(true);
+      });
+
+      // Randomize button
+      document.getElementById("randomizeBtn").addEventListener("click", () => {
+        SoundFX.ui();
+        randomizeGrid();
+      });
+
+      // Stdin Modal events
+      document.getElementById("openStdinModalBtn").addEventListener("click", () => {
+        SoundFX.ui();
+        openStdinModal();
+      });
+      document.getElementById("closeStdinModalBtn").addEventListener("click", closeStdinModal);
+      document.getElementById("cancelStdinBtn").addEventListener("click", closeStdinModal);
+      document.getElementById("applyStdinBtn").addEventListener("click", () => {
+        SoundFX.ui();
+        applyStdinInput();
+      });
+      document.getElementById("copyStdinBtn").addEventListener("click", () => {
+        SoundFX.ui();
+        const text = formatCurrentAsStdin();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => showToast("Copied Quera stdin to clipboard"));
+        } else {
+          const ta = document.getElementById("stdinTextarea");
+          ta.value = text;
+          ta.select();
+          document.execCommand("copy");
+          showToast("Copied Quera stdin to clipboard");
+        }
+      });
+      document.getElementById("stdinModal").addEventListener("click", (e) => {
+        if (e.target.id === "stdinModal") closeStdinModal();
+      });
+
+      // Brute-force toggle & clear preview
+      document.getElementById("toggleBruteForceBtn").addEventListener("click", () => {
+        SoundFX.ui();
+        appState.showBruteForce = !appState.showBruteForce;
+        if (!appState.showBruteForce) appState.bfPreviewRect = null;
+        renderCurrentStep();
+      });
+      document.getElementById("clearBfPreviewBtn").addEventListener("click", () => {
+        SoundFX.ui();
+        appState.bfPreviewRect = null;
+        renderCurrentStep();
+      });
+
+      // Transport controls
+      document.getElementById("btnReset").addEventListener("click", () => {
+        pausePlayback();
+        SoundFX.ui();
+        appState.currentStepIndex = 0;
+        renderCurrentStep();
+      });
+
+      document.getElementById("btnPrev").addEventListener("click", () => {
+        pausePlayback();
+        if (appState.currentStepIndex > 0) {
+          const prev = appState.steps[appState.currentStepIndex];
+          appState.currentStepIndex--;
+          renderCurrentStep();
+          SoundFX.playForStep(appState.steps[appState.currentStepIndex], prev);
+        }
+      });
+
+      document.getElementById("btnNext").addEventListener("click", () => {
+        pausePlayback();
+        if (appState.currentStepIndex < appState.steps.length - 1) {
+          const prev = appState.steps[appState.currentStepIndex];
+          appState.currentStepIndex++;
+          renderCurrentStep();
+          SoundFX.playForStep(appState.steps[appState.currentStepIndex], prev);
+        }
+      });
+
+      document.getElementById("btnPlayPause").addEventListener("click", () => {
+        if (!appState.isPlaying) SoundFX.ui();
+        togglePlayback();
+      });
+
+      // Quick-jump stage buttons
+      document.querySelectorAll(".stage-jump-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const targetStage = Number(btn.dataset.jumpStage);
+          const foundIdx = appState.steps.findIndex(s => s.stage === targetStage);
+          if (foundIdx !== -1) {
+            pausePlayback();
+            appState.currentStepIndex = foundIdx;
+            renderCurrentStep();
+            SoundFX.stage();
+          }
+        });
+      });
+
+      // Speed slider
+      document.getElementById("speedSlider").addEventListener("input", (e) => {
+        appState.speedIndex = Number(e.target.value);
+        document.getElementById("speedLabel").textContent = `${SPEEDS[appState.speedIndex].toFixed(2).replace(/\.00$/, ".0")}x`;
+        if (appState.isPlaying) {
+          pausePlayback();
+          startPlayback();
+        }
+      });
+
+      // Scrubber click, drag & hover tooltip
+      const scrubber = document.getElementById("scrubberTrack");
+      const scrubberTooltip = document.getElementById("scrubberTooltip");
+      let isScrubbing = false;
+
+      const getStepIndexAtClientX = (clientX) => {
+        const rect = scrubber.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        return {
+          ratio,
+          idx: Math.round(ratio * (appState.steps.length - 1))
+        };
+      };
+
+      const updateScrubberHover = (clientX) => {
+        if (appState.steps.length === 0) return;
+        const { ratio, idx } = getStepIndexAtClientX(clientX);
+        const s = appState.steps[idx];
+        scrubberTooltip.textContent = `Step ${idx + 1}/${appState.steps.length} · ${s.stageLabel} — ${s.title}`;
+        scrubberTooltip.style.left = `${Math.max(8, Math.min(92, ratio * 100))}%`;
+        scrubberTooltip.classList.remove("hidden");
+      };
+
+      const scrubToClientX = (clientX) => {
+        const { idx } = getStepIndexAtClientX(clientX);
+        if (idx !== appState.currentStepIndex) {
+          const prev = appState.steps[appState.currentStepIndex];
+          appState.currentStepIndex = idx;
+          renderCurrentStep();
+          SoundFX.playForStep(appState.steps[idx], prev);
+        }
+      };
+
+      scrubber.addEventListener("mouseenter", (e) => updateScrubberHover(e.clientX));
+      scrubber.addEventListener("mousemove", (e) => updateScrubberHover(e.clientX));
+      scrubber.addEventListener("mouseleave", () => {
+        if (!isScrubbing) scrubberTooltip.classList.add("hidden");
+      });
+
+      scrubber.addEventListener("mousedown", (e) => {
+        isScrubbing = true;
+        pausePlayback();
+        scrubToClientX(e.clientX);
+        updateScrubberHover(e.clientX);
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (isScrubbing) {
+          scrubToClientX(e.clientX);
+          updateScrubberHover(e.clientX);
+        }
+      });
+      window.addEventListener("mouseup", () => {
+        if (isScrubbing) {
+          isScrubbing = false;
+          scrubberTooltip.classList.add("hidden");
+        }
+      });
+      scrubber.addEventListener("touchstart", (e) => {
+        pausePlayback();
+        if (e.touches[0]) scrubToClientX(e.touches[0].clientX);
+      }, { passive: true });
+      scrubber.addEventListener("touchmove", (e) => {
+        if (e.touches[0]) scrubToClientX(e.touches[0].clientX);
+      }, { passive: true });
+
+      // Global Keyboard Shortcuts (ArrowLeft, ArrowRight, Space, Escape for modal)
+      window.addEventListener("keydown", (e) => {
+        const modalOpen = !document.getElementById("stdinModal").classList.contains("hidden");
+        if (modalOpen) {
+          if (e.key === "Escape") closeStdinModal();
+          return;
+        }
+
+        const tag = document.activeElement ? document.activeElement.tagName : "";
+        if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+
+        if (e.code === "Space") {
+          e.preventDefault();
+          togglePlayback();
+        } else if (e.code === "ArrowLeft") {
+          e.preventDefault();
+          pausePlayback();
+          if (appState.currentStepIndex > 0) {
+            const prev = appState.steps[appState.currentStepIndex];
+            appState.currentStepIndex--;
+            renderCurrentStep();
+            SoundFX.playForStep(appState.steps[appState.currentStepIndex], prev);
+          }
+        } else if (e.code === "ArrowRight") {
+          e.preventDefault();
+          pausePlayback();
+          if (appState.currentStepIndex < appState.steps.length - 1) {
+            const prev = appState.steps[appState.currentStepIndex];
+            appState.currentStepIndex++;
+            renderCurrentStep();
+            SoundFX.playForStep(appState.steps[appState.currentStepIndex], prev);
+          }
+        }
+      });
+
+      // Boot from exported state if present, otherwise default Preset 0
+      if (window.__INITIAL_STATE__ && Array.isArray(window.__INITIAL_STATE__.grid)) {
+        const saved = window.__INITIAL_STATE__;
+        appState.activePresetIndex = typeof saved.activePresetIndex === "number" ? saved.activePresetIndex : -1;
+        appState.N = saved.N;
+        appState.k = saved.k;
+        appState.grid = saved.grid.map(row => [...row]);
+        appState.showBruteForce = Boolean(saved.showBruteForce);
+        if (typeof saved.soundEnabled === "boolean") {
+          appState.soundEnabled = saved.soundEnabled;
+          updateSoundToggleUI();
+        }
+        document.getElementById("gridSizeSelect").value = String(saved.N);
+        document.getElementById("targetKInput").value = String(saved.k);
+        rebuildAndRender(true);
+        if (typeof saved.currentStepIndex === "number" && saved.currentStepIndex > 0) {
+          appState.currentStepIndex = Math.min(saved.currentStepIndex, appState.steps.length - 1);
+          renderCurrentStep();
+        }
+      } else {
+        loadPreset(0);
+      }
+    });
+  </script>
+</body>
+</html>
