@@ -2,10 +2,10 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
 [![Language: Java 17+](https://img.shields.io/badge/Java-17%2B-orange.svg)](src/Main.java)
-[![Visualizer: Interactive HTML](https://img.shields.io/badge/Visualizer-Interactive%20Demo-emerald.svg)](index.html)
+[![Visualizer: Interactive HTML](https://img.shields.io/badge/Visualizer-Interactive%20Demo-emerald.svg)](https://smabedi.github.io/karaj-gold-heist/)
 [![Problem Statement: Persian PDF](https://img.shields.io/badge/Problem%20PDF-Persian%20(Quera)-blue.svg)](karaj-problem-statement.pdf)
 
-> **Quick Links:** [Live Interactive Visualizer](index.html) · [Java Solution (`Main.java`)](src/Main.java) · [Original Problem Statement (Persian PDF)](karaj-problem-statement.pdf) · [Sample & Edge Test Cases](test_cases.txt)
+> **Quick Links:** [Live Interactive Visualizer](https://smabedi.github.io/karaj-gold-heist/) · [Java Solution (`Main.java`)](src/Main.java) · [Original Problem Statement (Persian PDF)](karaj-problem-statement.pdf) · [Sample & Edge Test Cases](test_cases.txt)
 
 An $O(N^2)$ time and $O(N^2)$ space deterministic solution—paired with a zero-dependency, step-by-step interactive web visualizer—for the **Karaj Gold Heist** algorithmic problem (*Data Structures & Algorithms — Project 1, Problem 2*).
 
